@@ -90,10 +90,11 @@ class AttackSelect(discord.ui.Select):
             move_name, power, resource_cost=cost
         )
 
-        # If opponent is bot (user_id == 0), automatically execute smart bot turn
+        # If opponent is bot (user_id == 0), automatically execute smart bot turn ONLY IF it is the bot's turn to attack
         if not result.get("finished") and self.engine.current_side.user_id == 0:
             bot_side = self.engine.current_side
             bot_active = bot_side.active_hero
+            # Ensure bot active hero is not KO'd and engine turn points to bot
             if not bot_active.is_ko:
                 import random
                 from utils.movesets import get_scaled_moveset
@@ -109,7 +110,7 @@ class AttackSelect(discord.ui.Select):
                                 break
 
                 # Smart Bot Decision 2: Tactical move selection
-                if not switched:
+                if not switched and self.engine.current_side.user_id == 0:
                     bot_lvl = getattr(bot_active, "level", 1)
                     bot_rarity = getattr(bot_active, "rarity", "D")
                     bot_ms = get_scaled_moveset(bot_active.class_type, rarity=bot_rarity)
@@ -128,6 +129,7 @@ class AttackSelect(discord.ui.Select):
                         bot_choice = basic_move
 
                     self.engine.execute_attack(bot_side, self.engine.opponent_side, bot_choice[0], bot_choice[2], resource_cost=bot_choice[3])
+
 
 
 
@@ -178,14 +180,31 @@ class SwitchSelect(discord.ui.Select):
         new_idx = int(val)
         success = self.engine.switch_active(self.side, new_idx, consumes_turn=True)
         if success:
-            # If opponent is bot (user_id == 0), automatically execute bot turn after switch
+            # If opponent is bot (user_id == 0), automatically execute smart bot turn after player switches hero
             if not self.engine.is_finished and self.engine.current_side.user_id == 0:
-                import random
-                from utils.movesets import get_class_moveset
-                bot_active = self.engine.current_side.active_hero
-                bot_ms = get_class_moveset(bot_active.class_type)
-                bot_choice = random.choice([bot_ms["basic"], bot_ms["skill"], bot_ms["ultimate"]])
-                self.engine.execute_attack(self.engine.current_side, self.engine.opponent_side, bot_choice[0], bot_choice[2], resource_cost=bot_choice[3])
+                bot_side = self.engine.current_side
+                bot_active = bot_side.active_hero
+                if not bot_active.is_ko:
+                    import random
+                    from utils.movesets import get_scaled_moveset
+
+                    bot_lvl = getattr(bot_active, "level", 1)
+                    bot_rarity = getattr(bot_active, "rarity", "D")
+                    bot_ms = get_scaled_moveset(bot_active.class_type, rarity=bot_rarity)
+                    
+                    basic_move = bot_ms["basic"]
+                    skill_move = bot_ms["skill"]
+                    ult_move = bot_ms["ultimate"]
+
+                    if bot_lvl >= 10 and bot_active.current_resource >= ult_move[3]:
+                        bot_choice = ult_move
+                    elif bot_lvl >= 5 and bot_active.current_resource >= skill_move[3] and random.random() < 0.70:
+                        bot_choice = skill_move
+                    else:
+                        bot_choice = basic_move
+
+                    self.engine.execute_attack(bot_side, self.engine.opponent_side, bot_choice[0], bot_choice[2], resource_cost=bot_choice[3])
+
 
 
 
