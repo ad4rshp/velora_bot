@@ -90,21 +90,45 @@ class AttackSelect(discord.ui.Select):
             move_name, power, resource_cost=cost
         )
 
-        # If opponent is bot (user_id == 0), automatically execute bot turn (only if bot is current attacker and active hero is ready)
+        # If opponent is bot (user_id == 0), automatically execute smart bot turn
         if not result.get("finished") and self.engine.current_side.user_id == 0:
-            bot_active = self.engine.current_side.active_hero
+            bot_side = self.engine.current_side
+            bot_active = bot_side.active_hero
             if not bot_active.is_ko:
                 import random
                 from utils.movesets import get_scaled_moveset
-                bot_lvl = getattr(bot_active, "level", 1)
-                bot_rarity = getattr(bot_active, "rarity", "D")
-                bot_ms = get_scaled_moveset(bot_active.class_type, rarity=bot_rarity)
-                
-                avail_moves = [bot_ms["basic"]]
-                if bot_lvl >= 5: avail_moves.append(bot_ms["skill"])
-                if bot_lvl >= 10: avail_moves.append(bot_ms["ultimate"])
-                bot_choice = random.choice(avail_moves)
-                self.engine.execute_attack(self.engine.current_side, self.engine.opponent_side, bot_choice[0], bot_choice[2], resource_cost=bot_choice[3])
+
+                # Smart Bot Decision 1: Low HP tactical switch if bench has full HP hero
+                hp_pct = bot_active.current_hp / max(1, bot_active.max_hp)
+                switched = False
+                if hp_pct < 0.25 and random.random() < 0.60:
+                    for idx, hero in enumerate(bot_side.team):
+                        if idx != bot_side.active_index and not hero.is_ko and (hero.current_hp / hero.max_hp) > 0.5:
+                            switched = self.engine.switch_active(bot_side, idx, consumes_turn=True)
+                            if switched:
+                                break
+
+                # Smart Bot Decision 2: Tactical move selection
+                if not switched:
+                    bot_lvl = getattr(bot_active, "level", 1)
+                    bot_rarity = getattr(bot_active, "rarity", "D")
+                    bot_ms = get_scaled_moveset(bot_active.class_type, rarity=bot_rarity)
+                    
+                    basic_move = bot_ms["basic"]
+                    skill_move = bot_ms["skill"]
+                    ult_move = bot_ms["ultimate"]
+
+                    # Prioritize Ultimate if unlocked and resource available
+                    if bot_lvl >= 10 and bot_active.current_resource >= ult_move[3]:
+                        bot_choice = ult_move
+                    # Else Skill move if unlocked and resource available
+                    elif bot_lvl >= 5 and bot_active.current_resource >= skill_move[3] and random.random() < 0.70:
+                        bot_choice = skill_move
+                    else:
+                        bot_choice = basic_move
+
+                    self.engine.execute_attack(bot_side, self.engine.opponent_side, bot_choice[0], bot_choice[2], resource_cost=bot_choice[3])
+
 
 
 
@@ -186,16 +210,18 @@ class BattleView(discord.ui.View):
         self.message: Optional[discord.Message] = None
 
     def build_battle_embed(self) -> discord.Embed:
-        """Construct current battle status embed."""
+        """Construct current battle status embed with clean layout."""
         side_a = self.engine.side_a
         side_b = self.engine.side_b
         active_a = side_a.active_hero
         active_b = side_b.active_hero
 
         color = 0x6C5CE7 if not self.engine.is_finished else 0x00B894
+        current_name = self.engine.current_side.display_name.lstrip('- ')
+        
         embed = discord.Embed(
             title=f"⚔️ Battle Arena — Turn {self.engine.round_number}",
-            description=f"Field Condition: **[{self.engine.active_terrain}]** | Active Turn: **{self.engine.current_side.display_name}**\n───────────",
+            description=f"Field: **[{self.engine.active_terrain}]** | Active Turn: **{current_name}**\n─────────────────────────────────────",
             color=color
         )
 
@@ -210,32 +236,38 @@ class BattleView(discord.ui.View):
                     heroes_status.append(f"🛡️ {h.name}")
             return " • ".join(heroes_status)
 
+        display_a = side_a.display_name.lstrip('- ')
+        display_b = side_b.display_name.lstrip('- ')
+
+        tag_a = f"🔵 **{display_a}** (Active)" if self.engine.current_side == side_a else f"🔵 **{display_a}**"
+        tag_b = f"🔴 **{display_b}** (Active)" if self.engine.current_side == side_b else f"🔴 **{display_b}**"
+
         embed.add_field(
-            name=f"🔵 {side_a.display_name}",
+            name=tag_a,
             value=(
-                f"**{active_a.name}** ({active_a.class_type})\n"
+                f"**{active_a.name}** (`{active_a.class_type}`)\n"
                 f"{active_a.hp_bar()}\n"
                 f"{active_a.resource_bar()}\n"
-                f"*Roster:* {bench_str(side_a)}"
+                f"Team: {bench_str(side_a)}"
             ),
             inline=True
         )
 
         embed.add_field(
-            name=f"🔴 {side_b.display_name}",
+            name=tag_b,
             value=(
-                f"**{active_b.name}** ({active_b.class_type})\n"
+                f"**{active_b.name}** (`{active_b.class_type}`)\n"
                 f"{active_b.hp_bar()}\n"
                 f"{active_b.resource_bar()}\n"
-                f"*Roster:* {bench_str(side_b)}"
+                f"Team: {bench_str(side_b)}"
             ),
             inline=True
         )
-
 
         # Recent 3 log messages formatted cleanly
         logs_summary = "\n".join(self.engine.battle_logs[-3:]) if self.engine.battle_logs else "*Battle initialized.*"
-        embed.add_field(name="📜 Combat Log", value=logs_summary, inline=False)
+        embed.add_field(name="📜 Combat Log", value=f"```text\n{logs_summary}\n```", inline=False)
+
 
         if self.engine.is_finished:
             embed.title = f"🏆 Victory — {self.engine.winner_side.display_name}"
