@@ -247,14 +247,13 @@ class BattleView(discord.ui.View):
         def bench_str(side):
             heroes_status = []
             for idx, h in enumerate(side.team):
-                # Shorten hero name to max 10 chars so embed doesn't overflow
-                short_name = h.name[:10] + "…" if len(h.name) > 10 else h.name
+                short_name = h.name[:12] + "…" if len(h.name) > 12 else h.name
                 if idx == side.active_index:
-                    heroes_status.append(f"⭐ {short_name}")
+                    heroes_status.append(f"**{short_name}**")
                 elif h.is_ko:
-                    heroes_status.append(f"💀 ~{short_name}~")
+                    heroes_status.append(f"~{short_name}~")
                 else:
-                    heroes_status.append(f"🛡️ {short_name}")
+                    heroes_status.append(short_name)
             return " • ".join(heroes_status)
 
         display_a = side_a.display_name.lstrip('- ')
@@ -269,7 +268,7 @@ class BattleView(discord.ui.View):
                 f"**{active_a.name}** (`{active_a.class_type}`)\n"
                 f"{active_a.hp_bar()}\n"
                 f"{active_a.resource_bar()}\n"
-                f"Team: {bench_str(side_a)}"
+                f"{bench_str(side_a)}"
             ),
             inline=True
         )
@@ -280,10 +279,11 @@ class BattleView(discord.ui.View):
                 f"**{active_b.name}** (`{active_b.class_type}`)\n"
                 f"{active_b.hp_bar()}\n"
                 f"{active_b.resource_bar()}\n"
-                f"Team: {bench_str(side_b)}"
+                f"{bench_str(side_b)}"
             ),
             inline=True
         )
+
 
         # Recent 3 log messages with clean plain text formatting inside codeblock
         import re
