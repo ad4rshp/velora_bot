@@ -1,0 +1,22 @@
+# Python bytecode & cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Environment & database secrets
+.env
+*.db
+*.db-wal
+*.db-shm
+database/
+
+# Logs & Backups
+
+logs/
+backups/
+scratch/
+
+# IDE & Editor folders
+.vscode/
+.idea/
