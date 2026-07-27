@@ -90,20 +90,22 @@ class AttackSelect(discord.ui.Select):
             move_name, power, resource_cost=cost
         )
 
-        # If opponent is bot (user_id == 0), automatically execute bot turn
+        # If opponent is bot (user_id == 0), automatically execute bot turn (only if bot is current attacker and active hero is ready)
         if not result.get("finished") and self.engine.current_side.user_id == 0:
-            import random
-            from utils.movesets import get_scaled_moveset
             bot_active = self.engine.current_side.active_hero
-            bot_lvl = getattr(bot_active, "level", 1)
-            bot_rarity = getattr(bot_active, "rarity", "D")
-            bot_ms = get_scaled_moveset(bot_active.class_type, rarity=bot_rarity)
-            
-            avail_moves = [bot_ms["basic"]]
-            if bot_lvl >= 5: avail_moves.append(bot_ms["skill"])
-            if bot_lvl >= 10: avail_moves.append(bot_ms["ultimate"])
-            bot_choice = random.choice(avail_moves)
-            self.engine.execute_attack(self.engine.current_side, self.engine.opponent_side, bot_choice[0], bot_choice[2], resource_cost=bot_choice[3])
+            if not bot_active.is_ko:
+                import random
+                from utils.movesets import get_scaled_moveset
+                bot_lvl = getattr(bot_active, "level", 1)
+                bot_rarity = getattr(bot_active, "rarity", "D")
+                bot_ms = get_scaled_moveset(bot_active.class_type, rarity=bot_rarity)
+                
+                avail_moves = [bot_ms["basic"]]
+                if bot_lvl >= 5: avail_moves.append(bot_ms["skill"])
+                if bot_lvl >= 10: avail_moves.append(bot_ms["ultimate"])
+                bot_choice = random.choice(avail_moves)
+                self.engine.execute_attack(self.engine.current_side, self.engine.opponent_side, bot_choice[0], bot_choice[2], resource_cost=bot_choice[3])
+
 
 
 
@@ -237,19 +239,43 @@ class BattleView(discord.ui.View):
 
         if self.engine.is_finished:
             embed.title = f"🏆 Victory — {self.engine.winner_side.display_name}"
-            # Increment battle quest progress
+            # Increment battle quest progress & rewards
             from utils.db import db
             import asyncio
+            
+            winner_side = self.engine.winner_side
+            loser_side = self.engine.side_b if winner_side == self.engine.side_a else self.engine.side_a
+
             for side in (side_a, side_b):
                 if side.user_id > 0:
                     asyncio.create_task(db.update_quest_progress(side.user_id, "Battles", 1))
-            if self.engine.winner_side.user_id > 0:
-                asyncio.create_task(db.update_quest_progress(self.engine.winner_side.user_id, "Victorious", 1))
-                asyncio.create_task(db.update_quest_progress(self.engine.winner_side.user_id, "Conquest", 1))
 
+            if winner_side.user_id > 0:
+                asyncio.create_task(db.update_quest_progress(winner_side.user_id, "Victorious", 1))
+                asyncio.create_task(db.update_quest_progress(winner_side.user_id, "Conquest", 1))
+                # PVE / PVP Rewards
+                coins_won = 250
+                sigils_won = 2
+                rp_won = 15
+                asyncio.create_task(db.execute(
+                    "UPDATE players SET coins = coins + ?, sigils = sigils + ?, rating = rating + ? WHERE user_id = ?",
+                    (coins_won, sigils_won, rp_won, winner_side.user_id)
+                ))
+                embed.add_field(
+                    name="🎁 Victory Rewards",
+                    value=f"🪙 **+{coins_won} Coins** | 🔮 **+{sigils_won} Sigils** | 🏆 **+{rp_won} RP**",
+                    inline=False
+                )
 
+            if loser_side.user_id > 0:
+                rp_loss = 8
+                asyncio.create_task(db.execute(
+                    "UPDATE players SET rating = MAX(0, rating - ?) WHERE user_id = ?",
+                    (rp_loss, loser_side.user_id)
+                ))
 
         return embed
+
 
 
     @discord.ui.button(label="Attack Move", style=discord.ButtonStyle.danger, emoji="⚔️", row=1)

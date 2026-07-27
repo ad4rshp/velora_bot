@@ -367,15 +367,12 @@ class CharacterCog(commands.Cog, name="Character"):
 
             for idx, char in enumerate(chunk, start=i+1):
                 star_badge = " (Active ⭐)" if char["is_active"] else ""
-                stats = calculate_stats(
-                    char["base_hp"], char["base_atk"], char["base_def"], char["base_spd"],
-                    level=char["level"], rarity=char["rarity"]
-                )
                 embed.add_field(
-                    name=f"#{idx}. {char['name']} ({char['class_type']}){star_badge}",
-                    value=f"Lvl **{char['level']}** • **[{char['rarity']}]** | HP: `{stats['hp']}`  ATK: `{stats['atk']}`  DF: `{stats['def']}`  SP: `{stats['spd']}`\n───────────",
+                    name=f"#{idx}. {char['name']} ({char['class_type']}) • Lvl {char['level']} • [{char['rarity']}]{star_badge}",
+                    value="───────────",
                     inline=False
                 )
+
 
             pages.append(embed)
 
@@ -409,8 +406,9 @@ class CharacterCog(commands.Cog, name="Character"):
             eq_status = f" (Equipped ⭐)" if eq["equipped_character_id"] else ""
             items_list.append({
                 "category": "⚔️ Equipment",
-                "display": f"**{eq['name']}** [{eq['rarity']}]{eq_status}\nSlot: `{eq['slot']}` | Qual: `{eq['quality']}%` | Dur: `{eq['durability']}/{eq['max_durability']}`\nHP: `+{eq['stat_hp']}`  ATK: `+{eq['stat_atk']}`  DF: `+{eq['stat_def']}`  SP: `+{eq['stat_spd']}`"
+                "display": f"**#{eq['equipment_id']} {eq['name']}** [{eq['rarity']}]{eq_status}\nSlot: `{eq['slot']}` | Qual: `{eq['quality']}%` | Dur: `{eq['durability']}/{eq['max_durability']}`\nHP: `+{eq['stat_hp']}`  ATK: `+{eq['stat_atk']}`  DF: `+{eq['stat_def']}`  SP: `+{eq['stat_spd']}`"
             })
+
 
         # 2. Scrolls
         for sc in scroll_rows:

@@ -133,8 +133,41 @@ class EquipmentCog(commands.Cog, name="Equipment"):
         )
         await ctx.send(embed=embed)
 
+    @commands.command(name="unequip", aliases=["uneqp", "dequip"])
+    async def unequip_gear(self, ctx: commands.Context, gear_index_or_id: str):
+        """Unequip a piece of equipment by index number or ID (e.g. `vunequip #1`)."""
+        user_id = ctx.author.id
+        gear_list = await db.get_player_equipment(user_id)
+        if not gear_list:
+            await ctx.send(embed=Embeds.warning("No Equipment", "You don't own any equipment!"))
+            return
+
+        gear = None
+        clean_g = gear_index_or_id.lstrip('#')
+        if clean_g.isdigit():
+            val = int(clean_g)
+            if 1 <= val <= len(gear_list):
+                gear = dict(gear_list[val - 1])
+            else:
+                gear = next((dict(g) for g in gear_list if g["equipment_id"] == val), None)
+
+        if not gear:
+            await ctx.send(embed=Embeds.error("Equipment Not Found", f"Could not find equipment matching `{gear_index_or_id}` in your inventory."))
+            return
+
+        if not gear["equipped_character_id"]:
+            await ctx.send(embed=Embeds.warning("Not Equipped", f"**{gear['name']}** is not currently equipped to any hero!"))
+            return
+
+        await db.execute("UPDATE player_equipment SET equipped_character_id = NULL WHERE equipment_id = ?", (gear["equipment_id"],))
+        embed = Embeds.success(
+            "Equipment Unequipped!",
+            f"Unequipped **{gear['name']}** [{gear['rarity']}] ({gear['slot']})!"
+        )
+        await ctx.send(embed=embed)
 
     @commands.command(name="forge", aliases=["craft"])
+
     async def forge(self, ctx: commands.Context, slot_or_class: str = "Weapon", slot_input: str = None):
         """Forge a class-compatible equipment piece (Costs 500 Coins + 2 Sigils)."""
         import random

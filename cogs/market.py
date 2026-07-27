@@ -39,11 +39,14 @@ class MarketCog(commands.Cog, name="Market"):
             )
 
             for item in chunk:
+                seller = self.bot.get_user(item['seller_id'])
+                seller_name = seller.display_name if seller else f"User {item['seller_id']}"
                 embed.add_field(
                     name=f"#{item['listing_id']}. {item['item_name']}",
-                    value=f"🪙 **{item['price_coins']:,}** Coins • Seller: <@{item['seller_id']}>",
+                    value=f"🪙 **{item['price_coins']:,}** Coins • Seller: **{seller_name}**",
                     inline=False
                 )
+
             pages.append(embed)
 
 

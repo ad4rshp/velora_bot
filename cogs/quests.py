@@ -246,14 +246,29 @@ class QuestsCog(commands.Cog, name="Quests & Progress"):
             rows = await db.get_leaderboard_coins(limit=10)
             embed = Embeds.base(title="🏆 Richest Players Leaderboard", color=0xFDCB6E)
             for idx, r in enumerate(rows, start=1):
-                embed.add_field(name=f"#{idx}. User ID {r['user_id']}", value=f"🪙 **{r['coins']:,} Coins** | 🔮 **{r['sigils']} Sigils**", inline=False)
+                user = self.bot.get_user(r["user_id"])
+                if not user:
+                    try:
+                        user = await self.bot.fetch_user(r["user_id"])
+                    except Exception:
+                        user = None
+                display_name = user.display_name if user else f"Player #{r['user_id']}"
+                embed.add_field(name=f"#{idx}. {display_name}", value=f"🪙 **{r['coins']:,} Coins** | 🔮 **{r['sigils']} Sigils**", inline=False)
         else:
             rows = await db.get_leaderboard_pvp(limit=10)
             embed = Embeds.base(title="🏆 PvP Rating Leaderboard", color=0xFDCB6E)
             for idx, r in enumerate(rows, start=1):
-                embed.add_field(name=f"#{idx}. User ID {r['user_id']}", value=f"⚔️ **{r['pvp_rating']} Rating** | 🪙 **{r['coins']:,} Coins**", inline=False)
+                user = self.bot.get_user(r["user_id"])
+                if not user:
+                    try:
+                        user = await self.bot.fetch_user(r["user_id"])
+                    except Exception:
+                        user = None
+                display_name = user.display_name if user else f"Player #{r['user_id']}"
+                embed.add_field(name=f"#{idx}. {display_name}", value=f"⭐ **{r['pvp_rating']:,} RP** | 🪙 **{r['coins']:,} Coins**", inline=False)
 
         await ctx.send(embed=embed)
+
 
 async def setup(bot: commands.Bot):
     await bot.add_cog(QuestsCog(bot))

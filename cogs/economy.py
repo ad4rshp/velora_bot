@@ -26,6 +26,29 @@ class EconomyCog(commands.Cog, name="Economy"):
         embed = view.build_shop_embed()
         view.message = await ctx.send(embed=embed, view=view)
 
+    @commands.command(name="balance", aliases=["bal", "vbal", "wallet", "money"])
+    async def balance(self, ctx: commands.Context, target: discord.Member = None):
+        """Check your or another player's wallet balance and currencies."""
+        user = target or ctx.author
+        player = await db.get_or_create_player(user.id)
+        embed = discord.Embed(
+            title=f"💰 Balance — {user.display_name}",
+            description="─────────────────────────────────────",
+            color=0xF1C40F
+        )
+        embed.set_thumbnail(url=user.display_avatar.url)
+        embed.add_field(
+            name="Currencies",
+            value=(
+                f"🪙 Coins: **{player['coins']:,}**\n"
+                f"🔮 Sigils: **{player['sigils']:,}**\n"
+                f"🏆 Rank Tier: **{player['rank_tier']}** (`{player['rating']} RP`)"
+            ),
+            inline=False
+        )
+        await ctx.send(embed=embed)
+
+
     @commands.command(name="open", aliases=["use", "vopen"])
     async def open_item(self, ctx: commands.Context, item_id: str = "common_chest"):
         """Open chests or consume items (common_chest, rare_chest, blank_scroll, repair_kit)."""
