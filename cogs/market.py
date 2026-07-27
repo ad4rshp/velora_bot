@@ -40,7 +40,7 @@ class MarketCog(commands.Cog, name="Market"):
         for i in range(0, len(listings), chunk_size):
             chunk = listings[i:i + chunk_size]
             embed = discord.Embed(
-                title="🏪 Player Marketplace — Recent Listings",
+                title="🏪 Player Marketplace",
                 description=f"Showing **{i+1}–{min(i+chunk_size, len(listings))}** of **{len(listings)}** active listings.\n─────────────────────────────────────",
                 color=0x00B894
             )
@@ -60,11 +60,15 @@ class MarketCog(commands.Cog, name="Market"):
 
             pages.append(embed)
 
+        for idx, page in enumerate(pages, start=1):
+            page.set_footer(text=f"Page {idx} of {len(pages)} | Use 'vmarket buy <#id>' or 'vmarket info <#id>'", icon_url=ctx.author.display_avatar.url)
+
         if len(pages) == 1:
             await ctx.send(embed=pages[0])
         else:
             view = PaginatorView(author_id=ctx.author.id, pages=pages)
             view.message = await ctx.send(embed=pages[0], view=view)
+
 
     @market.command(name="add", aliases=["list"])
     async def market_add(self, ctx: commands.Context, equipment_id: str, price: int):
