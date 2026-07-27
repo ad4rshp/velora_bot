@@ -150,9 +150,9 @@ class QuestsCog(commands.Cog, name="Quests & Progress"):
         await ctx.send(embed=embed)
 
 
-    @commands.command(name="stats", aliases=["statistics"])
+    @commands.command(name="stats", aliases=["statistics", "vstats"])
     async def statistics(self, ctx: commands.Context, target: discord.User = None):
-        """View comprehensive gameplay and lifetime statistics."""
+        """View player's combat performance and progression statistics."""
         user = target or ctx.author
         stats = await db.fetchone("SELECT * FROM player_stats WHERE user_id = ?", (user.id,))
         player = await db.get_or_create_player(user.id)
@@ -163,45 +163,47 @@ class QuestsCog(commands.Cog, name="Quests & Progress"):
 
         battles = stats["pvp_battles"]
         wins = stats["pvp_wins"]
+        losses = stats["pvp_losses"]
         winrate = f"{(wins / battles * 100):.1f}%" if battles > 0 else "0.0%"
 
-        embed = Embeds.base(
-            title="📊 Lifetime Statistics — " + user.display_name,
+        embed = discord.Embed(
+            title=f"Player Statistics — {user.display_name}",
+            description="─────────────────────────────────────",
             color=0x6C5CE7
         )
         embed.set_thumbnail(url=user.display_avatar.url)
 
         embed.add_field(
-            name="⚔️ PvP Combat",
+            name="Combat Performance",
             value=(
-                f"Rating: **{player['pvp_rating']}**\n"
-                f"Battles: `{battles}` | Wins: `{wins}` | Losses: `{stats['pvp_losses']}`\n"
-                f"Win Rate: `{winrate}` | Streak: `{stats['win_streak']}` (Max: `{stats['highest_win_streak']}`)"
+                f"Rating: **{player['pvp_rating']} RP** | Win Rate: **{winrate}**\n"
+                f"Battles: `{battles}` • Wins: `{wins}` • Losses: `{losses}`\n"
+                f"Streak: `{stats['win_streak']}` (Best: `{stats['highest_win_streak']}`)\n───────────"
             ),
             inline=False
         )
 
         embed.add_field(
-            name="💰 Economy & Trades",
+            name="Wealth & Commerce",
             value=(
-                f"Coins Balance: `🪙 {player['coins']:,}`\n"
-                f"Sigils Balance: `🔮 {player['sigils']:,}`\n"
-                f"Market Sales: `{stats['market_sales']}` | Direct Trades: `{stats['trades']}`"
+                f"Coins: 🪙 **{player['coins']:,}** | Sigils: 🔮 **{player['sigils']:,}**\n"
+                f"Market Sales: `{stats['market_sales']}` • Trades: `{stats['trades']}`\n───────────"
             ),
-            inline=True
+            inline=False
         )
 
         embed.add_field(
-            name="📦 Collections & Consumables",
+            name="Roster & Collections",
             value=(
-                f"Heroes Collected: `{stats['characters_collected']}`\n"
-                f"Gear Collected: `{stats['equipment_collected']}`\n"
-                f"Blank Scrolls Used: `{stats['blank_scrolls_used']}` | Repair Kits Used: `{stats['repair_kits_used']}`"
+                f"Heroes Discovered: `{stats['characters_collected']}` • Gear Forged: `{stats['equipment_collected']}`\n"
+                f"Scrolls Used: `{stats['blank_scrolls_used']}` • Repairs Done: `{stats['repair_kits_used']}`\n───────────"
             ),
-            inline=True
+            inline=False
         )
 
+        embed.set_footer(text=f"Requested by {ctx.author.display_name}")
         await ctx.send(embed=embed)
+
 
     @commands.command(name="title", aliases=["titles"])
     async def title(self, ctx: commands.Context, title_key: str = None):
