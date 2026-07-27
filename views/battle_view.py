@@ -4,7 +4,8 @@ Conducts 3v3 battles using buttons and select menus with zero text commands.
 """
 
 import discord
-from typing import List, Optional
+from typing import List, Optional, Any
+
 from utils.battle_engine import BattleEngine, BattleSide
 from utils.embeds import Embeds
 
