@@ -219,14 +219,23 @@ class SwitchSelect(discord.ui.Select):
             await interaction.response.send_message("❌ Cannot switch to that hero!", ephemeral=True)
 
 
-
 class BattleView(discord.ui.View):
     """Interactive container view for conducting 3v3 battles."""
 
-    def __init__(self, engine: BattleEngine, timeout: float = 300.0):
+    def __init__(self, engine: BattleEngine, cog: Any = None, timeout: float = 300.0):
         super().__init__(timeout=timeout)
         self.engine = engine
+        self.cog = cog
         self.message: Optional[discord.Message] = None
+
+    async def on_timeout(self) -> None:
+        if self.cog:
+            if self.engine.side_a.user_id > 0:
+                self.cog.active_battles.discard(self.engine.side_a.user_id)
+            if self.engine.side_b.user_id > 0:
+                self.cog.active_battles.discard(self.engine.side_b.user_id)
+        return await super().on_timeout()
+
 
     def build_battle_embed(self) -> discord.Embed:
         """Construct current battle status embed with clean layout."""
@@ -284,7 +293,6 @@ class BattleView(discord.ui.View):
             inline=True
         )
 
-
         # Recent 3 log messages with clean plain text formatting inside codeblock
         import re
         clean_logs = []
@@ -296,10 +304,16 @@ class BattleView(discord.ui.View):
         logs_summary = "\n".join(clean_logs) if clean_logs else "Battle initialized."
         embed.add_field(name="📜 Combat Log", value=f"```text\n{logs_summary}\n```", inline=False)
 
-
-
         if self.engine.is_finished:
             embed.title = f"🏆 Victory — {self.engine.winner_side.display_name}"
+
+            # Clear active battle status from cog tracker
+            if self.cog:
+                if side_a.user_id > 0:
+                    self.cog.active_battles.discard(side_a.user_id)
+                if side_b.user_id > 0:
+                    self.cog.active_battles.discard(side_b.user_id)
+
             # Increment battle quest progress & rewards
             from utils.db import db
             import asyncio
@@ -335,8 +349,8 @@ class BattleView(discord.ui.View):
                     (rp_loss, loser_side.user_id)
                 ))
 
-
         return embed
+
 
 
 

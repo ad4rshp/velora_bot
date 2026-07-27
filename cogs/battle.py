@@ -38,6 +38,7 @@ class BattleCog(commands.Cog, name="Battle"):
 
     def __init__(self, bot: commands.Bot):
         self.bot = bot
+        self.active_battles = set()
 
     @commands.command(name="rank", aliases=["vrank", "rating"])
     async def rank_info(self, ctx: commands.Context, target: discord.User = None):
@@ -71,8 +72,21 @@ class BattleCog(commands.Cog, name="Battle"):
     @commands.command(name="battle", aliases=["b", "fight"])
     async def battle(self, ctx: commands.Context, target: discord.User = None):
         """Initiate 3v3 battle against Shadow Syndicate monsters or challenge another player."""
-
         player_id = ctx.author.id
+
+        if player_id in self.active_battles:
+            await ctx.send(embed=Embeds.warning(
+                "Battle in Progress",
+                "You are already in an active battle! Please finish your current match before starting another."
+            ))
+            return
+
+        if target and target.id != player_id and target.id in self.active_battles:
+            await ctx.send(embed=Embeds.warning(
+                "Opponent Busy",
+                f"**{target.display_name}** is currently in an active battle!"
+            ))
+            return
 
         # 1. Fetch user's hero roster
         player_heroes = await db.get_player_characters(player_id)
@@ -174,7 +188,12 @@ class BattleCog(commands.Cog, name="Battle"):
 
         # 3. Instantiate Engine & Battle UI
         engine = BattleEngine(side_a, side_b)
-        view = BattleView(engine=engine)
+        view = BattleView(engine=engine, cog=self)
+
+        # Register users as in active battle
+        self.active_battles.add(player_id)
+        if not is_pve and target:
+            self.active_battles.add(target.id)
 
         if not is_pve and target:
             # Send Challenge Invitation View
@@ -202,6 +221,7 @@ class BattleCog(commands.Cog, name="Battle"):
         else:
             embed = view.build_battle_embed()
             view.message = await ctx.send(embed=embed, view=view)
+
 
 
 
