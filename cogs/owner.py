@@ -61,7 +61,27 @@ class OwnerCog(commands.Cog, name="Owner"):
         admin_logger.info(f"Owner {ctx.author} created database backup at '{backup_path}'")
         await ctx.send(embed=Embeds.success("Backup Created", f"Saved copy to `{backup_path}`"))
 
+    @commands.command(name="getdb", aliases=["vdb", "fetchdb", "downloaddb"])
+    async def fetch_database(self, ctx: commands.Context):
+        """Fetch and attach the live database.db file directly in Discord."""
+        db_file = Path(config.DATABASE_PATH)
+        if not db_file.exists():
+            await ctx.send(embed=Embeds.error("DB Fetch Failed", "Database file does not exist."))
+            return
+
+        file = discord.File(str(db_file), filename="database.db")
+        embed = Embeds.success(
+            "Live Database Export",
+            f"Attached live SQLite database file (`{db_file.name}`)."
+        )
+        try:
+            await ctx.author.send(embed=embed, file=file)
+            await ctx.send(embed=Embeds.info("Database Sent", "Sent live database export to your direct messages!"))
+        except discord.Forbidden:
+            await ctx.send(embed=embed, file=file)
+
     @commands.command(name="shutdown")
+
     async def shutdown_bot(self, ctx: commands.Context):
         """Gracefully close connections and shut down the bot."""
         admin_logger.info(f"Owner {ctx.author} requested bot shutdown.")
