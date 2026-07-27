@@ -54,7 +54,8 @@ class BattleCog(commands.Cog, name="Battle"):
             color=0x6C5CE7
         )
         embed.set_thumbnail(url=user.display_avatar.url)
-        embed.add_field(name="💡 RP Rules", value="*Earn +25 RP on PvE Victory; lose -15 RP on PvE Defeat.*", inline=False)
+        embed.add_field(name="💡 RP Rules", value="*Earn +15 RP on Victory; lose -8 RP on Defeat.*", inline=False)
+
         await ctx.send(embed=embed)
 
     @commands.command(name="battleguide", aliases=["vbattleguide", "bg", "guide"])
