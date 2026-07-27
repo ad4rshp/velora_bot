@@ -8,13 +8,14 @@ from views.base_view import VeloraView
 from utils.embeds import Embeds
 
 class BattleChallengeView(VeloraView):
-    """Interactive view for accepting or declining a PvP battle duel."""
+    """Interactive view for accepting or declining a PvP duel challenge."""
 
-    def __init__(self, challenger_id: int, target_id: int, start_callback):
+    def __init__(self, challenger_id: int, target_id: int, start_callback, cog = None):
         super().__init__(author_id=target_id, timeout=60.0)
         self.challenger_id = challenger_id
         self.target_id = target_id
         self.start_callback = start_callback
+        self.cog = cog
         self.accepted = False
 
     async def interaction_check(self, interaction: discord.Interaction) -> bool:
@@ -41,22 +42,34 @@ class BattleChallengeView(VeloraView):
         for child in self.children:
             child.disabled = True
         
+        # Release battle locks
+        if self.cog:
+            self.cog.active_battles.discard(self.challenger_id)
+            self.cog.active_battles.discard(self.target_id)
+
         embed = Embeds.info(
             "Duel Declined",
-            f"<@{self.target_id}> declined the PvP battle challenge."
+            f"<@{self.target_id}> declined the duel."
         )
         await interaction.response.edit_message(embed=embed, view=self)
         self.stop()
 
     async def on_timeout(self) -> None:
-        if not self.accepted and self.message:
+        if not self.accepted:
+            # Release battle locks
+            if self.cog:
+                self.cog.active_battles.discard(self.challenger_id)
+                self.cog.active_battles.discard(self.target_id)
+
             for child in self.children:
                 child.disabled = True
             embed = Embeds.warning(
                 "Challenge Expired",
-                "The PvP duel challenge timed out waiting for a response."
+                "The duel challenge timed out waiting for a response."
             )
-            try:
-                await self.message.edit(embed=embed, view=self)
-            except Exception:
-                pass
+            if self.message:
+                try:
+                    await self.message.edit(embed=embed, view=self)
+                except Exception:
+                    pass
+

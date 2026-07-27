@@ -166,7 +166,8 @@ class GeneralCog(commands.Cog, name="General"):
             description=f"─────────────────────────────────────",
             color=0xFDCB6E
         )
-        p5.add_field(name=f"`{prefix}battle [@User]` (alias: `b`, `fight`)", value="Initiate turn-based battle against Abyssal Vanguard or challenge a player.\n───────────", inline=False)
+        p5.add_field(name=f"`{prefix}battle [@User]` (alias: `b`, `fight`)", value="Initiate turn-based duel against Velora bot or challenge a player.\n───────────", inline=False)
+
         p5.add_field(name=f"`{prefix}battleguide` (alias: `bg`, `guide`)", value="Tactical combat guide covering roles, elemental fields, and skills.\n───────────", inline=False)
         p5.add_field(name=f"`{prefix}rank [@User]` (alias: `rating`)", value="View Ranked Tier progress (Unranked to Ascendant) & RP.\n───────────", inline=False)
         p5.add_field(name=f"`{prefix}quests` (alias: `q`)", value="View Daily & Weekly Quest progression.\n───────────", inline=False)

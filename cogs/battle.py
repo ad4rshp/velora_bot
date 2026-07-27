@@ -207,12 +207,13 @@ class BattleCog(commands.Cog, name="Battle"):
             challenge_view = BattleChallengeView(
                 challenger_id=player_id,
                 target_id=target.id,
-                start_callback=start_pvp_battle
+                start_callback=start_pvp_battle,
+                cog=self
             )
             embed_challenge = discord.Embed(
-                title="⚔️ PvP Duel Challenge!",
+                title="⚔️ Duel Challenge!",
                 description=(
-                    f"**{ctx.author.display_name}** has challenged **{target.display_name}** to a 3v3 PvP Duel!\n"
+                    f"**{ctx.author.display_name}** has challenged **{target.display_name}** to a Duel!\n"
                     f"Will **{target.display_name}** accept the challenge?\n───────────"
                 ),
                 color=0xE74C3C
@@ -222,6 +223,7 @@ class BattleCog(commands.Cog, name="Battle"):
         else:
             embed = view.build_battle_embed()
             view.message = await ctx.send(embed=embed, view=view)
+
 
 
 
