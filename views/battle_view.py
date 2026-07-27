@@ -228,12 +228,14 @@ class BattleView(discord.ui.View):
         def bench_str(side):
             heroes_status = []
             for idx, h in enumerate(side.team):
+                # Shorten hero name to max 10 chars so embed doesn't overflow
+                short_name = h.name[:10] + "…" if len(h.name) > 10 else h.name
                 if idx == side.active_index:
-                    heroes_status.append(f"⭐ **{h.name}**")
+                    heroes_status.append(f"⭐ {short_name}")
                 elif h.is_ko:
-                    heroes_status.append(f"💀 ~{h.name}~")
+                    heroes_status.append(f"💀 ~{short_name}~")
                 else:
-                    heroes_status.append(f"🛡️ {h.name}")
+                    heroes_status.append(f"🛡️ {short_name}")
             return " • ".join(heroes_status)
 
         display_a = side_a.display_name.lstrip('- ')
@@ -264,9 +266,17 @@ class BattleView(discord.ui.View):
             inline=True
         )
 
-        # Recent 3 log messages formatted cleanly
-        logs_summary = "\n".join(self.engine.battle_logs[-3:]) if self.engine.battle_logs else "*Battle initialized.*"
+        # Recent 3 log messages with clean plain text formatting inside codeblock
+        import re
+        clean_logs = []
+        for l in self.engine.battle_logs[-3:]:
+            # Strip markdown double asterisks so it doesn't print raw ** in text codeblocks
+            clean_l = re.sub(r'\*\*(.*?)\*\*', r'\1', l)
+            clean_logs.append(clean_l)
+
+        logs_summary = "\n".join(clean_logs) if clean_logs else "Battle initialized."
         embed.add_field(name="📜 Combat Log", value=f"```text\n{logs_summary}\n```", inline=False)
+
 
 
         if self.engine.is_finished:
