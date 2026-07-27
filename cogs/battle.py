@@ -125,11 +125,13 @@ class BattleCog(commands.Cog, name="Battle"):
             chosen_cat = random.sample(list(catalog_heroes), sample_size)
 
             bot_combatants = []
-            for idx, c_meta in enumerate(chosen_cat, start=1):
+            for idx, c_row in enumerate(chosen_cat, start=1):
+                c_meta = dict(c_row)
                 b_stats = calculate_stats(
                     c_meta["base_hp"], c_meta["base_atk"], c_meta["base_def"], c_meta["base_spd"],
                     level=bot_level, rarity=c_meta.get("base_rarity", "D")
                 )
+
                 b_comb = Combatant(
                     instance_id=-idx,
                     name=c_meta["name"],
