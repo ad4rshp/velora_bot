@@ -290,7 +290,7 @@ class BattleView(discord.ui.View):
                 sigils_won = 2
                 rp_won = 15
                 asyncio.create_task(db.execute(
-                    "UPDATE players SET coins = coins + ?, sigils = sigils + ?, rating = rating + ? WHERE user_id = ?",
+                    "UPDATE players SET coins = coins + ?, sigils = sigils + ?, pvp_rating = pvp_rating + ? WHERE user_id = ?",
                     (coins_won, sigils_won, rp_won, winner_side.user_id)
                 ))
                 embed.add_field(
@@ -302,9 +302,10 @@ class BattleView(discord.ui.View):
             if loser_side.user_id > 0:
                 rp_loss = 8
                 asyncio.create_task(db.execute(
-                    "UPDATE players SET rating = MAX(0, rating - ?) WHERE user_id = ?",
+                    "UPDATE players SET pvp_rating = MAX(0, pvp_rating - ?) WHERE user_id = ?",
                     (rp_loss, loser_side.user_id)
                 ))
+
 
         return embed
 

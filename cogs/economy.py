@@ -37,15 +37,18 @@ class EconomyCog(commands.Cog, name="Economy"):
             color=0xF1C40F
         )
         embed.set_thumbnail(url=user.display_avatar.url)
+        from cogs.battle import get_rank_title
+        rank_name, _ = get_rank_title(player['pvp_rating'])
         embed.add_field(
             name="Currencies",
             value=(
                 f"🪙 Coins: **{player['coins']:,}**\n"
                 f"🔮 Sigils: **{player['sigils']:,}**\n"
-                f"🏆 Rank Tier: **{player['rank_tier']}** (`{player['rating']} RP`)"
+                f"🏆 Rank Tier: **{rank_name}** (`{player['pvp_rating']} RP`)"
             ),
             inline=False
         )
+
         await ctx.send(embed=embed)
 
 
