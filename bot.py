@@ -8,7 +8,7 @@ import asyncio
 import os
 import sys
 import discord
-from discord.ext import commands
+from discord.ext import commands, tasks
 
 from config import config
 from utils.db import db
@@ -67,6 +67,16 @@ class VeloraBot(commands.Bot):
         bot_logger.info(f"Connected to {len(self.guilds)} guilds.")
         activity = discord.Game(name=f"Velora RPG | {config.DEFAULT_PREFIX}help")
         await self.change_presence(activity=activity)
+
+        if not self.auto_clean_logs.is_running():
+            self.auto_clean_logs.start()
+
+    @tasks.loop(hours=24)
+    async def auto_clean_logs(self):
+        """Background task: purge log files older than 3 days every 24 hours."""
+        from utils.logger import cleanup_old_logs
+        cleanup_old_logs(max_age_days=3)
+        bot_logger.info("Auto log cleaner: purged expired log files.")
 
     async def close(self) -> None:
         """Graceful shutdown hook closing database connection."""
