@@ -129,19 +129,21 @@ class EconomyCog(commands.Cog, name="Economy"):
         """
         if not target_type or not item_ref:
             embed = discord.Embed(
-                title="🔮 Sell & Salvage Usage",
                 description=(
+                    "─────────────────────────────────────\n"
                     "• `vsell gear <#ID>` ── Sell specific equipment piece\n"
-                    "• `vsell gear <rarity>` ── Bulk sell unequipped gear by rarity (`D`, `C`, `B`, `A`, `S`, `SS`)\n"
-                    "• `vsell scroll <#ID / all>` ── Sell scroll by ID or sell all scrolls\n"
+                    "• `vsell gear <tier>` ── Bulk sell unequipped gear by tier (`D`–`SS`)\n"
+                    "• `vsell scroll <#ID>` ── Sell specific scroll piece\n"
+                    "• `vsell scroll all` ── Bulk sell all owned scrolls\n"
                     "• `vsell hero <#ID>` ── Sell specific inactive hero\n"
-                    "• `vsell hero <rarity>` ── Bulk sell inactive heroes by rarity (`D`, `C`, `B`, `A`, `S`, `SS`)\n"
+                    "• `vsell hero <tier>` ── Bulk sell inactive heroes by tier (`D`–`SS`)\n"
                     "─────────────────────────────────────"
                 ),
                 color=0x6C5CE7
             )
             await ctx.send(embed=embed)
             return
+
 
 
         user_id = ctx.author.id
