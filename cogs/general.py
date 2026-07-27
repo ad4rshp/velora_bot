@@ -157,7 +157,8 @@ class GeneralCog(commands.Cog, name="General"):
         p4.add_field(name=f"`{prefix}shop` (alias: `{prefix}s`, `{prefix}store`)", value="Browse General Store for Hero Packs & supplies.\n───────────", inline=False)
         p4.add_field(name=f"`{prefix}sell <gear/hero/scroll> <#ID or rarity>` (alias: `{prefix}vsell`)", value="Salvage gear, scrolls, or heroes for Sigils (🔮).\n───────────", inline=False)
         p4.add_field(name=f"`{prefix}open <item>`", value="Open chests and packs for rewards.\n───────────", inline=False)
-        p4.add_field(name=f"`{prefix}market` (alias: `{prefix}m`, `{prefix}mkt`)", value="Player marketplace (`list <id> <price>`, `buy <id>`, `search`).\n───────────", inline=False)
+        p4.add_field(name=f"`{prefix}market` (alias: `{prefix}m`, `{prefix}mkt`)", value="Player marketplace (`vmarket add/buy/info/remove`).\n───────────", inline=False)
+
         p4.add_field(name=f"`{prefix}trade @User <coins>` (alias: `{prefix}t`)", value="Direct player-to-player trade with mutual confirmation.", inline=False)
 
 
