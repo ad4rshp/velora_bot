@@ -103,21 +103,46 @@ class BattleCog(commands.Cog, name="Battle"):
 
         side_a = BattleSide(user_id=player_id, display_name=ctx.author.display_name, team=team_a_combatants)
 
-        # 2. Setup Opponent Side (PvE Shadow Syndicate or Opponent Player)
+        # 2. Setup Opponent Side (PvE Dynamic Velora Team or Opponent Player)
         is_pve = False
         if not target or target.id == self.bot.user.id or target.id == player_id:
             is_pve = True
-            monster_stats_1 = {"hp": 110, "atk": 16, "def": 12, "spd": 9}
-            monster_stats_2 = {"hp": 90, "atk": 20, "def": 8, "spd": 11}
-            monster_stats_3 = {"hp": 80, "atk": 24, "def": 7, "spd": 16}
-            m1 = Combatant(instance_id=-1, name="Malakor", class_type="Necromancer", stats=monster_stats_1, resource_type="Mana", resource_max=100)
-            m1.level = 10
-            m2 = Combatant(instance_id=-2, name="Merlin", class_type="Mage", stats=monster_stats_2, resource_type="Mana", resource_max=100)
-            m2.level = 10
-            m3 = Combatant(instance_id=-3, name="Kage", class_type="Assassin", stats=monster_stats_3, resource_type="Energy", resource_max=100)
-            m3.level = 10
-            monster_combatants = [m1, m2, m3]
-            side_b = BattleSide(user_id=0, display_name="Velora", team=monster_combatants)
+            import random
+            catalog_heroes = await db.get_catalog_characters()
+            if not catalog_heroes:
+                catalog_heroes = [
+                    {"character_id": "knight_01", "name": "Arthur", "class_type": "Knight", "resource_type": "Stamina", "resource_max": 100, "base_rarity": "D", "base_hp": 120, "base_atk": 18, "base_def": 15, "base_spd": 10},
+                    {"character_id": "mage_01", "name": "Merlin", "class_type": "Mage", "resource_type": "Mana", "resource_max": 120, "base_rarity": "D", "base_hp": 85, "base_atk": 25, "base_def": 8, "base_spd": 12},
+                    {"character_id": "assassin_01", "name": "Kage", "class_type": "Assassin", "resource_type": "Energy", "resource_max": 100, "base_rarity": "D", "base_hp": 80, "base_atk": 26, "base_def": 7, "base_spd": 20}
+                ]
+
+            # Calculate average level & max rarity of challenger's active team
+            avg_lvl = sum(c.level for c in team_a_combatants) // max(1, len(team_a_combatants))
+            bot_level = max(1, avg_lvl)
+
+            # Sample 3 random distinct heroes from catalog
+            sample_size = min(3, len(catalog_heroes))
+            chosen_cat = random.sample(list(catalog_heroes), sample_size)
+
+            bot_combatants = []
+            for idx, c_meta in enumerate(chosen_cat, start=1):
+                b_stats = calculate_stats(
+                    c_meta["base_hp"], c_meta["base_atk"], c_meta["base_def"], c_meta["base_spd"],
+                    level=bot_level, rarity=c_meta.get("base_rarity", "D")
+                )
+                b_comb = Combatant(
+                    instance_id=-idx,
+                    name=c_meta["name"],
+                    class_type=c_meta["class_type"],
+                    stats=b_stats,
+                    resource_type=c_meta["resource_type"],
+                    resource_max=c_meta["resource_max"]
+                )
+                b_comb.level = bot_level
+                bot_combatants.append(b_comb)
+
+            side_b = BattleSide(user_id=0, display_name="Velora", team=bot_combatants)
+
 
 
         else:
