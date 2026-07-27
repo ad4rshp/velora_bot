@@ -418,10 +418,11 @@ class CharacterCog(commands.Cog, name="Character"):
             gear_lines = []
             for eq in gear_list[:6]:
                 status = " (Equipped ⭐)" if eq["equipped_character_id"] else ""
-                gear_lines.append(f"• **#{eq['equipment_id']} {eq['name']}** [{eq['rarity']}] `{eq['slot']}` ({eq['quality']}%) {status}")
+                gear_lines.append(f"• **#{eq['equipment_id']} {eq['name']}** [{eq['rarity']}] `{eq['slot']}`{status}")
             if len(gear_list) > 6:
                 gear_lines.append(f"*...and {len(gear_list) - 6} more items (`vequipment`)*")
             embed.add_field(name="Equipment & Weapons", value="\n".join(gear_lines) + "\n───────────", inline=False)
+
 
         # 2. Skill Scrolls Summary
         if scroll_rows:
