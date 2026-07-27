@@ -109,15 +109,16 @@ class BattleCog(commands.Cog, name="Battle"):
             is_pve = True
             monster_stats_1 = {"hp": 110, "atk": 16, "def": 12, "spd": 9}
             monster_stats_2 = {"hp": 90, "atk": 20, "def": 8, "spd": 11}
-            monster_stats_3 = {"hp": 85, "atk": 22, "def": 7, "spd": 14}
-            m1 = Combatant(instance_id=-1, name="Malakor's Warden", class_type="Knight", stats=monster_stats_1, resource_type="Stamina", resource_max=100)
+            monster_stats_3 = {"hp": 80, "atk": 24, "def": 7, "spd": 16}
+            m1 = Combatant(instance_id=-1, name="Malakor", class_type="Necromancer", stats=monster_stats_1, resource_type="Mana", resource_max=100)
             m1.level = 10
-            m2 = Combatant(instance_id=-2, name="Abyssal Archmage", class_type="Mage", stats=monster_stats_2, resource_type="Mana", resource_max=100)
+            m2 = Combatant(instance_id=-2, name="Merlin", class_type="Mage", stats=monster_stats_2, resource_type="Mana", resource_max=100)
             m2.level = 10
-            m3 = Combatant(instance_id=-3, name="Shadow Executioner", class_type="Assassin", stats=monster_stats_3, resource_type="Energy", resource_max=100)
+            m3 = Combatant(instance_id=-3, name="Kage", class_type="Assassin", stats=monster_stats_3, resource_type="Energy", resource_max=100)
             m3.level = 10
             monster_combatants = [m1, m2, m3]
-            side_b = BattleSide(user_id=0, display_name="Abyssal Vanguard", team=monster_combatants)
+            side_b = BattleSide(user_id=0, display_name="Velora", team=monster_combatants)
+
 
         else:
             opp_heroes = await db.get_player_characters(target.id)
