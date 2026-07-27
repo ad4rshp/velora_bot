@@ -126,14 +126,14 @@ class GeneralCog(commands.Cog, name="General"):
             color=0x6C5CE7
         )
         p2.add_field(name=f"`{prefix}start`", value="Claim starter hero squad & weapons.\n───────────", inline=False)
-        p2.add_field(name=f"`{prefix}profile` (alias: `{prefix}p`, `{prefix}prof`)", value="View player wallet, rating, and lead hero.\n───────────", inline=False)
-        p2.add_field(name=f"`{prefix}info [hero]` (alias: `{prefix}char`)", value="Inspect detailed hero attributes & movesets.\n───────────", inline=False)
-        p2.add_field(name=f"`{prefix}team` (alias: `{prefix}vteam`, `{prefix}squad`)", value="Manage your active 3-hero battle roster.\n───────────", inline=False)
-        p2.add_field(name=f"`{prefix}select <hero> [slot]` (alias: `{prefix}vselect`)", value="Assign a hero to battle lineup slot (1, 2, or 3).\n───────────", inline=False)
-        p2.add_field(name=f"`{prefix}rerollhero [hero]` (alias: `{prefix}rrh`, `{prefix}rh`)", value="Reroll hero rarity tier.\n───────────", inline=False)
+        p2.add_field(name=f"`{prefix}profile` (alias: `p`, `prof`)", value="View player wallet, rating, and lead hero.\n───────────", inline=False)
+        p2.add_field(name=f"`{prefix}info [hero]` (alias: `char`)", value="Inspect detailed hero attributes & movesets.\n───────────", inline=False)
+        p2.add_field(name=f"`{prefix}team` (alias: `squad`)", value="Manage your active 3-hero battle roster.\n───────────", inline=False)
+        p2.add_field(name=f"`{prefix}select <hero> [slot]`", value="Assign a hero to battle lineup slot (1, 2, or 3).\n───────────", inline=False)
+        p2.add_field(name=f"`{prefix}rerollhero [hero]` (alias: `rrh`, `rh`)", value="Reroll hero rarity tier.\n───────────", inline=False)
 
-        p2.add_field(name=f"`{prefix}collection` (alias: `{prefix}col`, `{prefix}gallery`)", value="View class discovery gallery & completion stats.\n───────────", inline=False)
-        p2.add_field(name=f"`{prefix}inventory` (alias: `{prefix}inv`, `{prefix}bag`)", value="View owned equipment, scrolls, packs, and items.", inline=False)
+        p2.add_field(name=f"`{prefix}collection` (alias: `col`, `gallery`)", value="View class discovery gallery & completion stats.\n───────────", inline=False)
+        p2.add_field(name=f"`{prefix}inventory` (alias: `inv`, `bag`)", value="View owned equipment, scrolls, packs, and items.", inline=False)
 
         # Page 3: Gear & Crafting
         p3 = discord.Embed(
@@ -141,12 +141,12 @@ class GeneralCog(commands.Cog, name="General"):
             description=f"─────────────────────────────────────",
             color=0x0984E3
         )
-        p3.add_field(name=f"`{prefix}equipment [slot]` (alias: `{prefix}eqp`, `{prefix}gear`)", value="Inspect gear inventory.\n───────────", inline=False)
-        p3.add_field(name=f"`{prefix}equip <gear_#> [hero]` (alias: `{prefix}vequip`, `{prefix}eq`)", value="Equip weapon or armor piece to a hero.\n───────────", inline=False)
-        p3.add_field(name=f"`{prefix}forge [slot]` (alias: `{prefix}craft`)", value="Forge class-compatible gear (500 Coins + 2 Sigils).\n───────────", inline=False)
-        p3.add_field(name=f"`{prefix}reroll <ID>` (alias: `{prefix}rr`)", value="Reroll equipment stats (10 Sigils).\n───────────", inline=False)
-        p3.add_field(name=f"`{prefix}repair <ID>` (alias: `{prefix}r`, `{prefix}rp`)", value="Repair equipment durability.\n───────────", inline=False)
-        p3.add_field(name=f"`{prefix}scrolls` (alias: `{prefix}sc`)", value="Browse skill scroll catalog.", inline=False)
+        p3.add_field(name=f"`{prefix}equipment [slot]` (alias: `eqp`, `gear`)", value="Inspect gear inventory.\n───────────", inline=False)
+        p3.add_field(name=f"`{prefix}equip <gear_#> [hero]` (alias: `eq`)", value="Equip weapon or armor piece to a hero.\n───────────", inline=False)
+        p3.add_field(name=f"`{prefix}forge [slot]` (alias: `craft`)", value="Forge class-compatible gear (500 Coins + 2 Sigils).\n───────────", inline=False)
+        p3.add_field(name=f"`{prefix}reroll <ID>` (alias: `rr`)", value="Reroll equipment stats (10 Sigils).\n───────────", inline=False)
+        p3.add_field(name=f"`{prefix}repair <ID>` (alias: `r`, `rp`)", value="Repair equipment durability.\n───────────", inline=False)
+        p3.add_field(name=f"`{prefix}scrolls` (alias: `sc`)", value="Browse skill scroll catalog.", inline=False)
 
         # Page 4: Economy & Market
         p4 = discord.Embed(
@@ -154,13 +154,11 @@ class GeneralCog(commands.Cog, name="General"):
             description=f"─────────────────────────────────────",
             color=0x00B894
         )
-        p4.add_field(name=f"`{prefix}shop` (alias: `{prefix}s`, `{prefix}store`)", value="Browse General Store for Hero Packs & supplies.\n───────────", inline=False)
-        p4.add_field(name=f"`{prefix}sell <gear/hero/scroll> <#ID or rarity>` (alias: `{prefix}vsell`)", value="Salvage gear, scrolls, or heroes for Sigils (🔮).\n───────────", inline=False)
+        p4.add_field(name=f"`{prefix}shop` (alias: `s`, `store`)", value="Browse General Store for Hero Packs & supplies.\n───────────", inline=False)
+        p4.add_field(name=f"`{prefix}sell <gear/hero/scroll> <#ID or tier>` (alias: `salvage`, `disassemble`)", value="Salvage gear, scrolls, or heroes for Sigils (🔮).\n───────────", inline=False)
         p4.add_field(name=f"`{prefix}open <item>`", value="Open chests and packs for rewards.\n───────────", inline=False)
-        p4.add_field(name=f"`{prefix}market` (alias: `{prefix}m`, `{prefix}mkt`)", value="Player marketplace (`vmarket add/buy/info/remove`).\n───────────", inline=False)
-
-        p4.add_field(name=f"`{prefix}trade @User <coins>` (alias: `{prefix}t`)", value="Direct player-to-player trade with mutual confirmation.", inline=False)
-
+        p4.add_field(name=f"`{prefix}market` (alias: `m`, `mkt`)", value="Player marketplace (`market add/buy/info/remove`).\n───────────", inline=False)
+        p4.add_field(name=f"`{prefix}trade @User <coins>` (alias: `t`)", value="Direct player-to-player trade with mutual confirmation.", inline=False)
 
         # Page 5: Combat & Progression
         p5 = discord.Embed(
@@ -168,13 +166,14 @@ class GeneralCog(commands.Cog, name="General"):
             description=f"─────────────────────────────────────",
             color=0xFDCB6E
         )
-        p5.add_field(name=f"`{prefix}battle [@User]` (alias: `{prefix}b`, `{prefix}fight`)", value="Initiate turn-based battle against Abyssal Vanguard or challenge a player.\n───────────", inline=False)
-        p5.add_field(name=f"`{prefix}battleguide` (alias: `{prefix}bg`, `{prefix}guide`)", value="Tactical combat guide covering roles, elemental fields, and skills.\n───────────", inline=False)
-        p5.add_field(name=f"`{prefix}rank [@User]` (alias: `{prefix}vrank`, `{prefix}rating`)", value="View Ranked Tier progress (Unranked to Ascendant) & RP.\n───────────", inline=False)
-        p5.add_field(name=f"`{prefix}quests` (alias: `{prefix}q`)", value="View Daily & Weekly Quest progression.\n───────────", inline=False)
+        p5.add_field(name=f"`{prefix}battle [@User]` (alias: `b`, `fight`)", value="Initiate turn-based battle against Abyssal Vanguard or challenge a player.\n───────────", inline=False)
+        p5.add_field(name=f"`{prefix}battleguide` (alias: `bg`, `guide`)", value="Tactical combat guide covering roles, elemental fields, and skills.\n───────────", inline=False)
+        p5.add_field(name=f"`{prefix}rank [@User]` (alias: `rating`)", value="View Ranked Tier progress (Unranked to Ascendant) & RP.\n───────────", inline=False)
+        p5.add_field(name=f"`{prefix}quests` (alias: `q`)", value="View Daily & Weekly Quest progression.\n───────────", inline=False)
         p5.add_field(name=f"`{prefix}stats`", value="View lifetime combat statistics and win rates.\n───────────", inline=False)
-        p5.add_field(name=f"`{prefix}top [pvp/coins]` (alias: `{prefix}lb`, `{prefix}leaderboard`)", value="View global leaderboards.\n───────────", inline=False)
+        p5.add_field(name=f"`{prefix}top [pvp/coins]` (alias: `lb`, `leaderboard`)", value="View global leaderboards.\n───────────", inline=False)
         p5.add_field(name=f"`{prefix}title [name]`", value="Equip earned titles.", inline=False)
+
 
         for page in (p1, p2, p3, p4, p5):
             page.set_footer(text=f"Requested by {user.display_name}", icon_url=user.display_avatar.url)
