@@ -196,7 +196,7 @@ class EconomyCog(commands.Cog, name="Economy"):
                 payout = SIGIL_PAYOUT.get(rarity, 2)
 
                 await db.execute("DELETE FROM player_equipment WHERE equipment_id = ?", (target_gear["equipment_id"],))
-                await db.add_sigils(user_id, payout)
+                await db.execute("UPDATE players SET sigils = sigils + ? WHERE user_id = ?", (payout, user_id))
 
                 embed = Embeds.success(
                     "Equipment Salvaged!",
@@ -221,7 +221,7 @@ class EconomyCog(commands.Cog, name="Economy"):
                 else:
                     await db.execute(f"DELETE FROM player_equipment WHERE equipment_id IN {eq_ids}")
 
-                await db.add_sigils(user_id, total_payout)
+                await db.execute("UPDATE players SET sigils = sigils + ? WHERE user_id = ?", (total_payout, user_id))
 
                 embed = Embeds.success(
                     "Bulk Gear Salvaged!",
@@ -246,7 +246,7 @@ class EconomyCog(commands.Cog, name="Economy"):
             if clean_arg.lower() == "all":
                 total_payout = len(scroll_rows) * 4
                 await db.execute("DELETE FROM player_scrolls WHERE user_id = ?", (user_id,))
-                await db.add_sigils(user_id, total_payout)
+                await db.execute("UPDATE players SET sigils = sigils + ? WHERE user_id = ?", (total_payout, user_id))
                 embed = Embeds.success(
                     "Bulk Scrolls Sold!",
                     f"Sold all **{len(scroll_rows)}** skill scrolls for 🔮 **+{total_payout:,} Sigils**!"
@@ -268,7 +268,7 @@ class EconomyCog(commands.Cog, name="Economy"):
 
                 payout = 4
                 await db.execute("DELETE FROM player_scrolls WHERE instance_id = ?", (target_sc["instance_id"],))
-                await db.add_sigils(user_id, payout)
+                await db.execute("UPDATE players SET sigils = sigils + ? WHERE user_id = ?", (payout, user_id))
 
                 embed = Embeds.success(
                     "Scroll Sold!",
@@ -308,7 +308,7 @@ class EconomyCog(commands.Cog, name="Economy"):
                 payout = SIGIL_PAYOUT.get(rarity, 2)
 
                 await db.execute("DELETE FROM player_characters WHERE instance_id = ?", (target_char["instance_id"],))
-                await db.add_sigils(user_id, payout)
+                await db.execute("UPDATE players SET sigils = sigils + ? WHERE user_id = ?", (payout, user_id))
 
                 embed = Embeds.success(
                     "Hero Released!",
@@ -339,7 +339,8 @@ class EconomyCog(commands.Cog, name="Economy"):
                 else:
                     await db.execute(f"DELETE FROM player_characters WHERE instance_id IN {c_ids}")
 
-                await db.add_sigils(user_id, total_payout)
+                await db.execute("UPDATE players SET sigils = sigils + ? WHERE user_id = ?", (total_payout, user_id))
+
 
                 embed = Embeds.success(
                     "Bulk Heroes Released!",
