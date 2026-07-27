@@ -337,6 +337,18 @@ class BattleView(discord.ui.View):
                     "UPDATE players SET coins = coins + ?, sigils = sigils + ?, pvp_rating = pvp_rating + ? WHERE user_id = ?",
                     (coins_won, sigils_won, rp_won, winner_side.user_id)
                 ))
+                # Update player combat stats
+                asyncio.create_task(db.execute(
+                    """
+                    UPDATE player_stats
+                    SET pvp_battles = pvp_battles + 1,
+                        pvp_wins = pvp_wins + 1,
+                        win_streak = win_streak + 1,
+                        highest_win_streak = MAX(highest_win_streak, win_streak + 1)
+                    WHERE user_id = ?
+                    """,
+                    (winner_side.user_id,)
+                ))
                 embed.add_field(
                     name="🎁 Victory Rewards",
                     value=f"🪙 **+{coins_won} Coins** | 🔮 **+{sigils_won} Sigils** | 🏆 **+{rp_won} RP**",
@@ -349,8 +361,20 @@ class BattleView(discord.ui.View):
                     "UPDATE players SET pvp_rating = MAX(0, pvp_rating - ?) WHERE user_id = ?",
                     (rp_loss, loser_side.user_id)
                 ))
+                # Update player combat stats for defeat
+                asyncio.create_task(db.execute(
+                    """
+                    UPDATE player_stats
+                    SET pvp_battles = pvp_battles + 1,
+                        pvp_losses = pvp_losses + 1,
+                        win_streak = 0
+                    WHERE user_id = ?
+                    """,
+                    (loser_side.user_id,)
+                ))
 
         return embed
+
 
 
 
