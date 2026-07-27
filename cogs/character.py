@@ -385,9 +385,9 @@ class CharacterCog(commands.Cog, name="Character"):
             view = PaginatorView(author_id=ctx.author.id, pages=pages)
             view.message = await ctx.send(embed=pages[0], view=view)
 
-    @commands.command(name="inventory", aliases=["inv", "c", "bag"])
+    @commands.command(name="inventory", aliases=["inv", "vinv", "bag"])
     async def inventory(self, ctx: commands.Context):
-        """View owned equipment, skill scrolls, packs, and items."""
+        """View owned equipment, scrolls, packs, and consumables."""
         user_id = ctx.author.id
         gear_list = await db.get_player_equipment(user_id)
         scroll_rows = await db.fetchall(
@@ -399,76 +399,59 @@ class CharacterCog(commands.Cog, name="Character"):
             (user_id,)
         )
 
-        items_list = []
-
-        # 1. Equipment items
-        for eq in gear_list:
-            eq_status = f" (Equipped ⭐)" if eq["equipped_character_id"] else ""
-            items_list.append({
-                "category": "⚔️ Equipment",
-                "display": f"**#{eq['equipment_id']} {eq['name']}** [{eq['rarity']}]{eq_status}\nSlot: `{eq['slot']}` | Qual: `{eq['quality']}%` | Dur: `{eq['durability']}/{eq['max_durability']}`\nHP: `+{eq['stat_hp']}`  ATK: `+{eq['stat_atk']}`  DF: `+{eq['stat_def']}`  SP: `+{eq['stat_spd']}`"
-            })
-
-
-        # 2. Scrolls
-        for sc in scroll_rows:
-            items_list.append({
-                "category": "📜 Skill Scrolls",
-                "display": f"**{sc['name']}** [{sc['scroll_type']}]\nPower: `{sc['power']}` | Compatible: **{sc['required_class_tags']}**"
-            })
-
-        # 3. Consumables/Packs/Kits
-        item_names = {
-            "pack_novice": "🎴 Novice Hero Pack",
-            "pack_mythic": "🃏 Mythic Hero Pack",
-            "pack_celestial": "🔮 Celestial Hero Pack",
-            "repair_kit": "🛠️ Repair Kit"
-        }
-        for con in consumables:
-            name = item_names.get(con["item_id"], con["item_id"].title())
-            items_list.append({
-                "category": "🎒 Consumables & Packs",
-                "display": f"**{name}** x`{con['quantity']}`"
-            })
-
-        if not items_list:
+        if not gear_list and not scroll_rows and not consumables:
             await ctx.send(embed=Embeds.warning(
                 "Empty Inventory",
-                "You don't own any items, equipment, or scrolls yet!\nVisit `vshop` or use `vforge` to obtain gear and packs."
+                "You don't own any gear, scrolls, or consumable items yet!\nVisit `vshop` or use `vforge` to get started."
             ))
             return
 
-        chunk_size = 8
-        pages = []
-        total_items = len(items_list)
+        embed = discord.Embed(
+            title=f"Inventory — {ctx.author.display_name}",
+            description="─────────────────────────────────────",
+            color=0x0984E3
+        )
+        embed.set_thumbnail(url=ctx.author.display_avatar.url)
 
-        for i in range(0, total_items, chunk_size):
-            chunk = items_list[i:i + chunk_size]
-            embed = discord.Embed(
-                title=f"🎒 Inventory — {ctx.author.display_name}",
-                description=f"Showing items **{i+1}–{min(i+chunk_size, total_items)}** of **{total_items}** total.\n───────────",
-                color=0x0984E3
-            )
-            embed.set_thumbnail(url=ctx.author.display_avatar.url)
+        # 1. Equipment Summary
+        if gear_list:
+            gear_lines = []
+            for eq in gear_list[:6]:
+                status = " (Equipped ⭐)" if eq["equipped_character_id"] else ""
+                gear_lines.append(f"• **#{eq['equipment_id']} {eq['name']}** [{eq['rarity']}] `{eq['slot']}` ({eq['quality']}%) {status}")
+            if len(gear_list) > 6:
+                gear_lines.append(f"*...and {len(gear_list) - 6} more items (`vequipment`)*")
+            embed.add_field(name="Equipment & Weapons", value="\n".join(gear_lines) + "\n───────────", inline=False)
 
-            for idx, item in enumerate(chunk, start=i+1):
-                embed.add_field(
-                    name=f"#{idx}. {item['category']}",
-                    value=item["display"],
-                    inline=False
-                )
+        # 2. Skill Scrolls Summary
+        if scroll_rows:
+            scroll_lines = []
+            for sc in scroll_rows[:4]:
+                scroll_lines.append(f"• **#{sc['instance_id']} {sc['name']}** [{sc['scroll_type']}] • Pwr `{sc['power']}`")
+            if len(scroll_rows) > 4:
+                scroll_lines.append(f"*...and {len(scroll_rows) - 4} more scrolls*")
+            embed.add_field(name="Skill Scrolls", value="\n".join(scroll_lines) + "\n───────────", inline=False)
 
-            pages.append(embed)
+        # 3. Consumables & Packs
+        if consumables:
+            item_names = {
+                "common_chest": "Common Chest",
+                "rare_chest": "Rare Chest",
+                "blank_scroll": "Blank Scroll",
+                "novice_pack": "Novice Hero Pack",
+                "mythic_pack": "Mythic Hero Pack",
+                "celestial_pack": "Celestial Hero Pack",
+                "repair_kit": "Repair Kit"
+            }
+            con_lines = []
+            for con in consumables:
+                name = item_names.get(con["item_id"], con["item_id"].replace('_', ' ').title())
+                con_lines.append(f"• **{name}** x`{con['quantity']}`")
+            embed.add_field(name="Consumables & Packs", value="\n".join(con_lines) + "\n───────────", inline=False)
 
-        for page_idx, page in enumerate(pages, start=1):
-            page.set_footer(text=f"Page {page_idx} of {len(pages)} | Requested by {ctx.author.display_name}", icon_url=ctx.author.display_avatar.url)
-
-        if len(pages) == 1:
-            await ctx.send(embed=pages[0])
-        else:
-            view = PaginatorView(author_id=ctx.author.id, pages=pages)
-            view.message = await ctx.send(embed=pages[0], view=view)
-
+        embed.set_footer(text=f"Requested by {ctx.author.display_name}")
+        await ctx.send(embed=embed)
 
 async def setup(bot: commands.Bot):
     await bot.add_cog(CharacterCog(bot))
+
