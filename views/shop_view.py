@@ -110,6 +110,9 @@ class ShopView(VeloraView):
 
                 rarity = random.choices(rarities, weights=weights)[0]
 
+                # Ensure player profile exists in players table
+                await db.get_or_create_player(user_id)
+
                 # Insert player character
                 await db.execute(
                     """
@@ -118,6 +121,7 @@ class ShopView(VeloraView):
                     """,
                     (user_id, cat_char["character_id"], lvl, rarity)
                 )
+
 
                 char_inst = await db.fetchone("SELECT last_insert_rowid() as id")
                 char_instance_id = char_inst["id"]

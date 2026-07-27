@@ -62,7 +62,9 @@ class QuestsCog(commands.Cog, name="Quests & Progress"):
         """Fetch or assign active daily and weekly quests for a player."""
         rows = await db.fetchall("SELECT * FROM player_quests WHERE user_id = ?", (user_id,))
         if not rows:
+            await db.get_or_create_player(user_id)
             # Pick 2 daily quests and 1 weekly quest
+
             daily_candidates = [q for q in QUEST_POOL if q["type"] == "daily"]
             weekly_candidates = [q for q in QUEST_POOL if q["type"] == "weekly"]
 
