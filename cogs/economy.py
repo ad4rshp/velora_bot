@@ -118,5 +118,241 @@ class EconomyCog(commands.Cog, name="Economy"):
             embed = Embeds.info("Repair Kit Ready", "Use `vrepair <Equipment_ID>` to apply repair kits to your damaged equipment.")
             await ctx.send(embed=embed)
 
+    @commands.command(name="sell", aliases=["vsell", "disassemble", "salvage"])
+    async def sell(self, ctx: commands.Context, target_type: str = None, item_ref: str = None):
+        """Sell weapons/gear, scrolls, or heroes for Sigils (🔮) based on Rarity.
+        
+        Usage:
+          • vsell gear <#ID or rarity: D/C/B/A/S/SS> (e.g. vsell gear #1 or vsell gear D)
+          • vsell scroll <#ID or all> (e.g. vsell scroll #1 or vsell scroll all)
+          • vsell hero <#ID or rarity: D/C/B/A/S/SS> (e.g. vsell hero #2 or vsell hero D)
+        """
+        if not target_type or not item_ref:
+            embed = discord.Embed(
+                title="🔮 Sigil Salvage & Exchange",
+                description=(
+                    "Salvage equipment, scrolls, or heroes for **Sigils (🔮)**!\n"
+                    "─────────────────────────────────────\n"
+                    "**Rarity Sigil Payout Table:**\n"
+                    "• **[D]**: 🔮 **2 Sigils**\n"
+                    "• **[C]**: 🔮 **5 Sigils**\n"
+                    "• **[B]**: 🔮 **12 Sigils**\n"
+                    "• **[A]**: 🔮 **25 Sigils**\n"
+                    "• **[S]**: 🔮 **60 Sigils**\n"
+                    "• **[SS]**: 🔮 **150 Sigils**\n"
+                    "• **Scrolls**: 🔮 **4 Sigils** each\n"
+                    "─────────────────────────────────────\n"
+                    "**Commands:**\n"
+                    "• `vsell gear <#ID>` ── Sell specific equipment piece\n"
+                    "• `vsell gear <rarity>` ── Bulk sell all unequipped gear of rarity (e.g. `vsell gear D`)\n"
+                    "• `vsell scroll <#ID / all>` ── Sell scroll by ID or sell all scrolls\n"
+                    "• `vsell hero <#ID>` ── Sell specific hero (non-active)\n"
+                    "• `vsell hero <rarity>` ── Bulk sell inactive heroes of rarity (e.g. `vsell hero D`)"
+                ),
+                color=0x6C5CE7
+            )
+            await ctx.send(embed=embed)
+            return
+
+        user_id = ctx.author.id
+        category = target_type.lower()
+        arg = item_ref.strip()
+
+        SIGIL_PAYOUT = {
+            "D": 2,
+            "C": 5,
+            "B": 12,
+            "A": 25,
+            "S": 60,
+            "SS": 150
+        }
+
+        # 1. GEAR SELLING
+        if category in ("gear", "equipment", "weapon", "armor"):
+            gear_list = await db.get_player_equipment(user_id)
+            if not gear_list:
+                await ctx.send(embed=Embeds.warning("No Gear", "You don't own any equipment items to sell!"))
+                return
+
+            clean_arg = arg.lstrip('#')
+            # Single item sell by ID/Index
+            if clean_arg.isdigit():
+                val = int(clean_arg)
+                target_gear = None
+                if 1 <= val <= len(gear_list):
+                    target_gear = dict(gear_list[val - 1])
+                else:
+                    target_gear = next((dict(g) for g in gear_list if g["equipment_id"] == val), None)
+
+                if not target_gear:
+                    await ctx.send(embed=Embeds.error("Not Found", f"Could not find gear matching `{arg}`."))
+                    return
+
+                if target_gear["equipped_character_id"]:
+                    await ctx.send(embed=Embeds.warning("Equipped Item", f"**{target_gear['name']}** is equipped! Unequip it before selling."))
+                    return
+
+                rarity = target_gear["rarity"].upper()
+                payout = SIGIL_PAYOUT.get(rarity, 2)
+
+                await db.execute("DELETE FROM player_equipment WHERE equipment_id = ?", (target_gear["equipment_id"],))
+                await db.add_sigils(user_id, payout)
+
+                embed = Embeds.success(
+                    "Equipment Salvaged!",
+                    f"Salvaged **{target_gear['name']}** [{rarity}] for 🔮 **+{payout} Sigils**!"
+                )
+                await ctx.send(embed=embed)
+                return
+
+            # Bulk sell by Rarity
+            target_rarity = arg.upper()
+            if target_rarity in SIGIL_PAYOUT:
+                to_sell = [g for g in gear_list if g["rarity"].upper() == target_rarity and not g["equipped_character_id"]]
+                if not to_sell:
+                    await ctx.send(embed=Embeds.warning("No Matching Gear", f"No unequipped **[{target_rarity}]** gear found to sell."))
+                    return
+
+                total_payout = sum(SIGIL_PAYOUT.get(g["rarity"].upper(), 2) for g in to_sell)
+                eq_ids = tuple(g["equipment_id"] for g in to_sell)
+
+                if len(eq_ids) == 1:
+                    await db.execute("DELETE FROM player_equipment WHERE equipment_id = ?", (eq_ids[0],))
+                else:
+                    await db.execute(f"DELETE FROM player_equipment WHERE equipment_id IN {eq_ids}")
+
+                await db.add_sigils(user_id, total_payout)
+
+                embed = Embeds.success(
+                    "Bulk Gear Salvaged!",
+                    f"Salvaged **{len(to_sell)}** `[{target_rarity}]` equipment pieces for 🔮 **+{total_payout:,} Sigils**!"
+                )
+                await ctx.send(embed=embed)
+                return
+
+            await ctx.send(embed=Embeds.error("Invalid Argument", "Specify a gear #ID (e.g. `#1`) or rarity (`D`, `C`, `B`, `A`, `S`, `SS`)."))
+
+        # 2. SCROLL SELLING
+        elif category in ("scroll", "scrolls"):
+            scroll_rows = await db.fetchall(
+                "SELECT ps.instance_id, s.name, s.scroll_type FROM player_scrolls ps JOIN scrolls s ON ps.scroll_id = s.scroll_id WHERE ps.user_id = ?",
+                (user_id,)
+            )
+            if not scroll_rows:
+                await ctx.send(embed=Embeds.warning("No Scrolls", "You don't own any scrolls to sell!"))
+                return
+
+            clean_arg = arg.lstrip('#')
+            if clean_arg.lower() == "all":
+                total_payout = len(scroll_rows) * 4
+                await db.execute("DELETE FROM player_scrolls WHERE user_id = ?", (user_id,))
+                await db.add_sigils(user_id, total_payout)
+                embed = Embeds.success(
+                    "Bulk Scrolls Sold!",
+                    f"Sold all **{len(scroll_rows)}** skill scrolls for 🔮 **+{total_payout:,} Sigils**!"
+                )
+                await ctx.send(embed=embed)
+                return
+
+            if clean_arg.isdigit():
+                val = int(clean_arg)
+                target_sc = None
+                if 1 <= val <= len(scroll_rows):
+                    target_sc = dict(scroll_rows[val - 1])
+                else:
+                    target_sc = next((dict(s) for s in scroll_rows if s["instance_id"] == val), None)
+
+                if not target_sc:
+                    await ctx.send(embed=Embeds.error("Not Found", f"Could not find scroll matching `{arg}`."))
+                    return
+
+                payout = 4
+                await db.execute("DELETE FROM player_scrolls WHERE instance_id = ?", (target_sc["instance_id"],))
+                await db.add_sigils(user_id, payout)
+
+                embed = Embeds.success(
+                    "Scroll Sold!",
+                    f"Sold **{target_sc['name']}** [{target_sc['scroll_type']}] for 🔮 **+{payout} Sigils**!"
+                )
+                await ctx.send(embed=embed)
+                return
+
+            await ctx.send(embed=Embeds.error("Invalid Argument", "Specify a scroll #ID (e.g. `#1`) or `all` to bulk sell all scrolls."))
+
+        # 3. HERO SELLING
+        elif category in ("hero", "character", "char"):
+            player_heroes = await db.get_player_characters(user_id)
+            if len(player_heroes) <= 3:
+                await ctx.send(embed=Embeds.warning("Min Roster Reached", "You must keep at least 3 heroes for your 3v3 battle roster!"))
+                return
+
+            clean_arg = arg.lstrip('#')
+            # Single hero sell
+            if clean_arg.isdigit():
+                val = int(clean_arg)
+                target_char = None
+                if 1 <= val <= len(player_heroes):
+                    target_char = dict(player_heroes[val - 1])
+                else:
+                    target_char = next((dict(c) for c in player_heroes if c["instance_id"] == val), None)
+
+                if not target_char:
+                    await ctx.send(embed=Embeds.error("Not Found", f"Could not find hero matching `{arg}`."))
+                    return
+
+                if target_char["is_active"]:
+                    await ctx.send(embed=Embeds.warning("Active Hero", f"**{target_char['name']}** is active in your battle team! Swap them out before selling."))
+                    return
+
+                rarity = target_char["rarity"].upper()
+                payout = SIGIL_PAYOUT.get(rarity, 2)
+
+                await db.execute("DELETE FROM player_characters WHERE instance_id = ?", (target_char["instance_id"],))
+                await db.add_sigils(user_id, payout)
+
+                embed = Embeds.success(
+                    "Hero Released!",
+                    f"Released **{target_char['name']}** ({target_char['class_type']}) [{rarity}] for 🔮 **+{payout} Sigils**!"
+                )
+                await ctx.send(embed=embed)
+                return
+
+            # Bulk sell inactive heroes by rarity
+            target_rarity = arg.upper()
+            if target_rarity in SIGIL_PAYOUT:
+                to_sell = [c for c in player_heroes if c["rarity"].upper() == target_rarity and not c["is_active"]]
+                max_can_sell = len(player_heroes) - 3
+                if max_can_sell <= 0:
+                    await ctx.send(embed=Embeds.warning("Roster Limit", "You must keep at least 3 heroes for your 3v3 battle roster!"))
+                    return
+
+                to_sell = to_sell[:max_can_sell]
+                if not to_sell:
+                    await ctx.send(embed=Embeds.warning("No Matching Heroes", f"No inactive **[{target_rarity}]** heroes found to sell."))
+                    return
+
+                total_payout = sum(SIGIL_PAYOUT.get(c["rarity"].upper(), 2) for c in to_sell)
+                c_ids = tuple(c["instance_id"] for c in to_sell)
+
+                if len(c_ids) == 1:
+                    await db.execute("DELETE FROM player_characters WHERE instance_id = ?", (c_ids[0],))
+                else:
+                    await db.execute(f"DELETE FROM player_characters WHERE instance_id IN {c_ids}")
+
+                await db.add_sigils(user_id, total_payout)
+
+                embed = Embeds.success(
+                    "Bulk Heroes Released!",
+                    f"Released **{len(to_sell)}** `[{target_rarity}]` heroes for 🔮 **+{total_payout:,} Sigils**!"
+                )
+                await ctx.send(embed=embed)
+                return
+
+            await ctx.send(embed=Embeds.error("Invalid Argument", "Specify a hero #ID (e.g. `#2`) or rarity (`D`, `C`, `B`, `A`, `S`, `SS`)."))
+
+        else:
+            await ctx.send(embed=Embeds.error("Invalid Category", "Valid sell categories: `gear`, `scroll`, `hero`."))
+
+
 async def setup(bot: commands.Bot):
     await bot.add_cog(EconomyCog(bot))
