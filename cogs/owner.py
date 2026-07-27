@@ -61,7 +61,16 @@ class OwnerCog(commands.Cog, name="Owner"):
         admin_logger.info(f"Owner {ctx.author} created database backup at '{backup_path}'")
         await ctx.send(embed=Embeds.success("Backup Created", f"Saved copy to `{backup_path}`"))
 
+    @commands.command(name="cleanlogs", aliases=["vcleanlogs", "clearlogs"])
+    async def clean_log_files(self, ctx: commands.Context, max_days: int = 1):
+        """Purge old log files older than max_days."""
+        from utils.logger import cleanup_old_logs
+        cleanup_old_logs(max_age_days=max_days)
+        admin_logger.info(f"Owner {ctx.author} manually cleaned log files older than {max_days} days.")
+        await ctx.send(embed=Embeds.success("Logs Cleaned", f"Purged log files older than `{max_days}` days."))
+
     @commands.command(name="getdb", aliases=["vdb", "fetchdb", "downloaddb"])
+
     async def fetch_database(self, ctx: commands.Context):
         """Fetch and attach the live database.db file directly in Discord."""
         db_file = Path(config.DATABASE_PATH)

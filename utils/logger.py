@@ -20,6 +20,20 @@ class Formatter(logging.Formatter):
     def __init__(self):
         super().__init__(fmt=self.fmt, datefmt=self.datefmt)
 
+import time
+
+def cleanup_old_logs(max_age_days: int = 3):
+    """Automated log cleaner removing log files older than max_age_days."""
+    now = time.time()
+    cutoff = now - (max_age_days * 86400)
+    for log_file in LOGS_DIR.glob("*.log*"):
+        try:
+            if log_file.stat().st_mtime < cutoff:
+                log_file.unlink()
+                print(f"[LogCleaner]: Removed expired log file '{log_file.name}'")
+        except Exception as e:
+            pass
+
 def setup_logger(name: str, filename: str, level=None) -> logging.Logger:
     """Helper to set up rotating file and console handlers for a specific logger module."""
     if level is None:
@@ -30,11 +44,11 @@ def setup_logger(name: str, filename: str, level=None) -> logging.Logger:
     logger.propagate = False
 
     if not logger.handlers:
-        # Rotating File Handler (Max 2MB per file, max 2 backups)
+        # Rotating File Handler (Max 1MB per file, max 1 backup)
         file_handler = RotatingFileHandler(
             LOGS_DIR / filename,
-            maxBytes=2 * 1024 * 1024,
-            backupCount=2,
+            maxBytes=1 * 1024 * 1024,
+            backupCount=1,
             encoding="utf-8"
         )
         file_handler.setFormatter(Formatter())
@@ -48,6 +62,10 @@ def setup_logger(name: str, filename: str, level=None) -> logging.Logger:
         logger.addHandler(console_handler)
 
     return logger
+
+# Clean expired logs on logger initialization
+cleanup_old_logs(max_age_days=3)
+
 
 # Pre-instantiated specialized loggers
 bot_logger = setup_logger("bot", "bot.log")
