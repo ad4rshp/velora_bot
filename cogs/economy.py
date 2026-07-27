@@ -129,30 +129,20 @@ class EconomyCog(commands.Cog, name="Economy"):
         """
         if not target_type or not item_ref:
             embed = discord.Embed(
-                title="🔮 Sigil Salvage & Exchange",
+                title="🔮 Sell & Salvage Usage",
                 description=(
-                    "Salvage equipment, scrolls, or heroes for **Sigils (🔮)**!\n"
-                    "─────────────────────────────────────\n"
-                    "**Rarity Sigil Payout Table:**\n"
-                    "• **[D]**: 🔮 **2 Sigils**\n"
-                    "• **[C]**: 🔮 **5 Sigils**\n"
-                    "• **[B]**: 🔮 **12 Sigils**\n"
-                    "• **[A]**: 🔮 **25 Sigils**\n"
-                    "• **[S]**: 🔮 **60 Sigils**\n"
-                    "• **[SS]**: 🔮 **150 Sigils**\n"
-                    "• **Scrolls**: 🔮 **4 Sigils** each\n"
-                    "─────────────────────────────────────\n"
-                    "**Commands:**\n"
                     "• `vsell gear <#ID>` ── Sell specific equipment piece\n"
-                    "• `vsell gear <rarity>` ── Bulk sell all unequipped gear of rarity (e.g. `vsell gear D`)\n"
+                    "• `vsell gear <rarity>` ── Bulk sell unequipped gear by rarity (`D`, `C`, `B`, `A`, `S`, `SS`)\n"
                     "• `vsell scroll <#ID / all>` ── Sell scroll by ID or sell all scrolls\n"
-                    "• `vsell hero <#ID>` ── Sell specific hero (non-active)\n"
-                    "• `vsell hero <rarity>` ── Bulk sell inactive heroes of rarity (e.g. `vsell hero D`)"
+                    "• `vsell hero <#ID>` ── Sell specific inactive hero\n"
+                    "• `vsell hero <rarity>` ── Bulk sell inactive heroes by rarity (`D`, `C`, `B`, `A`, `S`, `SS`)\n"
+                    "─────────────────────────────────────"
                 ),
                 color=0x6C5CE7
             )
             await ctx.send(embed=embed)
             return
+
 
         user_id = ctx.author.id
         category = target_type.lower()
