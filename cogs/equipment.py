@@ -360,12 +360,81 @@ class EquipmentCog(commands.Cog, name="Equipment"):
                 ))
                 return
 
-            await db.repair_equipment(user_id, gear["equipment_id"], cost_coins)
-            embed = Embeds.success(
-                "Equipment Repaired!",
-                f"🛠️ Repaired **{gear['name']}** [{gear['rarity']}] ({gear['slot']}) to **100% Durability** (`{gear['max_durability']}/{gear['max_durability']}`) for 🪙 **{cost_coins:,} Coins**!"
-            )
-            await ctx.send(embed=embed)
+    @commands.command(name="winfo", aliases=["vwinfo", "weaponinfo", "gearinfo"])
+    async def weapon_info(self, ctx: commands.Context, index_or_id: str):
+        """Inspect detailed weapon/equipment stats and durability (e.g. `vwinfo #1`)."""
+        user_id = ctx.author.id
+        gear_list = await db.get_player_equipment(user_id)
+        if not gear_list:
+            await ctx.send(embed=Embeds.warning("No Equipment", "You don't own any equipment items yet!"))
+            return
+
+        gear = None
+        clean_arg = index_or_id.strip().lstrip('#')
+        if clean_arg.isdigit():
+            val = int(clean_arg)
+            if 1 <= val <= len(gear_list):
+                gear = dict(gear_list[val - 1])
+            else:
+                gear = next((dict(g) for g in gear_list if g["equipment_id"] == val), None)
+
+        if not gear:
+            st = index_or_id.lower()
+            gear = next((dict(g) for g in gear_list if st in g["name"].lower()), None)
+
+        if not gear:
+            await ctx.send(embed=Embeds.error("Item Not Found", f"Could not find equipment matching `{index_or_id}` in your inventory."))
+            return
+
+        embed = EquipmentDetailView.build_equipment_embed(dict(gear))
+        view = EquipmentDetailView(author_id=ctx.author.id, eq_row=gear)
+        view.message = await ctx.send(embed=embed, view=view)
+
+    @commands.command(name="scrollinfo", aliases=["vscrollinfo", "scinfo"])
+    async def scroll_info(self, ctx: commands.Context, index_or_id: str):
+        """Inspect detailed skill scroll attributes, level requirements & power (e.g. `vscrollinfo #1`)."""
+        user_id = ctx.author.id
+        scroll_rows = await db.fetchall(
+            """
+            SELECT ps.instance_id, ps.scroll_id, s.name, s.scroll_type, s.power, s.cooldown,
+                   s.required_class_tags, s.min_level, s.resource_cost, s.description
+            FROM player_scrolls ps
+            JOIN scrolls s ON ps.scroll_id = s.scroll_id
+            WHERE ps.user_id = ?
+            """,
+            (user_id,)
+        )
+        if not scroll_rows:
+            scroll_rows = await db.fetchall("SELECT * FROM scrolls")
+
+        target_scroll = None
+        clean_s = index_or_id.strip().lstrip('#')
+        if clean_s.isdigit():
+            val = int(clean_s)
+            if 1 <= val <= len(scroll_rows):
+                target_scroll = dict(scroll_rows[val - 1])
+            else:
+                target_scroll = next((dict(s) for s in scroll_rows if s.get("instance_id") == val), None)
+
+        if not target_scroll:
+            st = index_or_id.lower()
+            target_scroll = next((dict(s) for s in scroll_rows if st in s["name"].lower() or st in s["scroll_type"].lower()), None)
+
+        if not target_scroll:
+            await ctx.send(embed=Embeds.error("Scroll Not Found", f"Could not find skill scroll matching `{index_or_id}`."))
+            return
+
+        embed = discord.Embed(
+            title=f"📜 Scroll Info — {target_scroll['name']}",
+            description="─────────────────────────────────────",
+            color=0x0984E3
+        )
+        embed.add_field(name="Scroll Details", value=f"Type: **{target_scroll['scroll_type']}**\nPower Rating: `⚡ {target_scroll['power']}`\nCooldown: `⏳ {target_scroll['cooldown']} turns`", inline=True)
+        embed.add_field(name="Requirements", value=f"Required Level: `Lvl {target_scroll.get('min_level', 1)}`\nResource Cost: `{target_scroll.get('resource_cost', 20)}` Power\nCompatible Classes: **{target_scroll['required_class_tags']}**", inline=True)
+        embed.add_field(name="Effect Description", value=f"*{target_scroll['description']}*", inline=False)
+        embed.set_footer(text=f"Use 'vlearn #{target_scroll.get('instance_id', 1)} <hero>' to equip this scroll.")
+        await ctx.send(embed=embed)
+
 
 
 

@@ -127,12 +127,11 @@ class GeneralCog(commands.Cog, name="General"):
         )
         p2.add_field(name=f"`{prefix}start`", value="Claim starter hero squad & weapons.\n───────────", inline=False)
         p2.add_field(name=f"`{prefix}profile` (alias: `p`, `prof`)", value="View player wallet, rating, and lead hero.\n───────────", inline=False)
-        p2.add_field(name=f"`{prefix}info [hero]` (alias: `char`)", value="Inspect detailed hero attributes & movesets.\n───────────", inline=False)
-        p2.add_field(name=f"`{prefix}team` (alias: `squad`)", value="Manage your active 3-hero battle roster.\n───────────", inline=False)
+        p2.add_field(name=f"`{prefix}info [hero]` (alias: `char`)", value="Inspect hero attributes & loadout stats.\n───────────", inline=False)
+        p2.add_field(name=f"`{prefix}abilityinfo [class/hero]` (alias: `vability`, `abinfo`)", value="Inspect passive abilities, armor resistances & moveset details.\n───────────", inline=False)
+        p2.add_field(name=f"`{prefix}team` (alias: `squad`, `vteam set <hero> <slot>`)", value="Manage your active 3-hero battle roster.\n───────────", inline=False)
         p2.add_field(name=f"`{prefix}select <hero> [slot]`", value="Assign a hero to battle lineup slot (1, 2, or 3).\n───────────", inline=False)
         p2.add_field(name=f"`{prefix}rerollhero [hero]` (alias: `rrh`, `rh`)", value="Reroll hero rarity tier.\n───────────", inline=False)
-
-        p2.add_field(name=f"`{prefix}collection` (alias: `col`, `gallery`)", value="View class discovery gallery & completion stats.\n───────────", inline=False)
         p2.add_field(name=f"`{prefix}inventory` (alias: `inv`, `bag`)", value="View owned equipment, scrolls, packs, and items.", inline=False)
 
         # Page 3: Gear & Crafting
@@ -141,12 +140,15 @@ class GeneralCog(commands.Cog, name="General"):
             description=f"─────────────────────────────────────",
             color=0x0984E3
         )
-        p3.add_field(name=f"`{prefix}equipment [slot]` (alias: `eqp`, `gear`)", value="Inspect gear inventory.\n───────────", inline=False)
+        p3.add_field(name=f"`{prefix}equipment [slot]` (alias: `eqp`, `gear`)", value="Inspect equipment inventory list.\n───────────", inline=False)
         p3.add_field(name=f"`{prefix}equip <gear_#> [hero]` (alias: `eq`)", value="Equip weapon or armor piece to a hero.\n───────────", inline=False)
+        p3.add_field(name=f"`{prefix}winfo <#ID>` (alias: `vwinfo`, `weaponinfo`)", value="Inspect weapon stats, quality, & durability.\n───────────", inline=False)
+        p3.add_field(name=f"`{prefix}learn <scroll_#> [hero]` (alias: `vlearn`, `vequipscroll`)", value="Learn & equip skill scroll to compatible hero.\n───────────", inline=False)
+        p3.add_field(name=f"`{prefix}scrollinfo <#ID>` (alias: `vscrollinfo`, `scinfo`)", value="Inspect scroll power, level reqs & class tags.\n───────────", inline=False)
         p3.add_field(name=f"`{prefix}forge [slot]` (alias: `craft`)", value="Forge class-compatible gear (500 Coins + 2 Sigils).\n───────────", inline=False)
         p3.add_field(name=f"`{prefix}reroll <ID>` (alias: `rr`)", value="Reroll equipment stats (10 Sigils).\n───────────", inline=False)
-        p3.add_field(name=f"`{prefix}repair <ID>` (alias: `r`, `rp`)", value="Repair equipment durability.\n───────────", inline=False)
-        p3.add_field(name=f"`{prefix}scrolls` (alias: `sc`)", value="Browse skill scroll catalog.", inline=False)
+        p3.add_field(name=f"`{prefix}repair <ID>` (alias: `r`, `rp`)", value="Repair equipment durability.", inline=False)
+
 
         # Page 4: Economy & Market
         p4 = discord.Embed(

@@ -235,19 +235,42 @@ class BattleEngine:
             self._end_turn()
             return {"finished": self.is_finished, "winner": self.winner_side, "missed": True}
 
+        # Determine Damage Category (Physical / Elemental / Ranged)
+        phys_moves = {"Slash", "Shield Bash", "Holy Slash", "Smash", "Iron Bastion", "Bulwark Shield", "Spear Thrust", "Holy Cleave", "Gungnir Thrust", "Hammer Strike", "Sacred Smite", "Heavy Slash", "Judgement Blade"}
+        elem_moves = {"Arcane Bolt", "Lightning", "Fireball", "Shadow Bolt", "Life Siphon", "Soul Drain", "Primal Flame", "Tempest", "Firestorm", "Meteor Storm", "Cataclysmic Firestorm", "Vampiric Drain", "Siphon Vitality", "Arcane Restoration"}
+        
+        category = "Physical"
+        if attack_name in elem_moves or attacker.class_type in ("Mage", "Necromancer", "Elementalist"):
+            category = "Elemental"
+        elif attack_name in phys_moves or attacker.class_type in ("Knight", "Guardian", "Paladin", "Valkyrie"):
+            category = "Physical"
+        else:
+            category = "Ranged"
+
         # Terrain multipliers
         terrain_mult = 1.2 if self.active_terrain == "Firestorm" and attacker.class_type == "Mage" else 1.0
 
-        # Damage Mitigation Formula (Punchy 12-16 turn 3v3 pace)
+        # Class Armor & Resistance Mitigation Matrix
+        armor_mult = 1.0
+        if category == "Physical" and defender.class_type in ("Knight", "Guardian", "Paladin"):
+            armor_mult = 0.75  # 25% Physical Armor Resistance
+        elif category == "Elemental" and defender.class_type in ("Mage", "Necromancer", "Elementalist"):
+            armor_mult = 0.75  # 25% Elemental Mana Ward Resistance
+        elif category == "Ranged" and defender.class_type in ("Archer", "Assassin", "Valkyrie"):
+            armor_mult = 0.75  # 25% Ranged Evasion Resistance
+
+        # Damage Mitigation Formula
         power_mult = (power / 15.0) if not exhausted else (power / 15.0 * 0.6)
         def_mitigation = 100.0 / (100.0 + (defender.defense * 0.5))
-        raw_damage = max(1.0, attacker.atk * power_mult * def_mitigation * terrain_mult)
+        raw_damage = max(1.0, attacker.atk * power_mult * def_mitigation * terrain_mult * armor_mult)
+
 
         variance = random.uniform(0.92, 1.08)
         final_damage = max(1, int(raw_damage * variance))
 
         dealt = defender.take_damage(final_damage)
-        self.log(f"⚔️ **{attacker.name}**: **{attack_name}** → **{defender.name}** ({dealt} dmg)")
+        self.log(f"⚔️ **{attacker.name}**: **{attack_name}** [{category}] → **{defender.name}** ({dealt} dmg)")
+
 
         # Status Application Triggers based on move/class type
         if "Fire" in attack_name or attacker.class_type in ("Mage", "Elementalist"):

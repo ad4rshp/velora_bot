@@ -223,6 +223,66 @@ class CharacterCog(commands.Cog, name="Character"):
         )
         await ctx.send(embed=embed)
 
+    @commands.command(name="abilityinfo", aliases=["vabilityinfo", "vability", "abinfo"])
+    async def ability_info(self, ctx: commands.Context, class_or_hero: str = None):
+        """Inspect class passive ability, moveset details, and armor resistance matrix."""
+        from utils.movesets import get_class_passive, get_scaled_moveset
+
+        target_class = "Knight"
+        if class_or_hero:
+            clean = class_or_hero.lower()
+            for c_name in ("Knight", "Mage", "Archer", "Assassin", "Guardian", "Necromancer", "Valkyrie", "Paladin", "Elementalist"):
+                if clean in c_name.lower():
+                    target_class = c_name
+                    break
+        else:
+            characters = await db.get_player_characters(ctx.author.id)
+            if characters:
+                main_hero = next((c for c in characters if c["is_active"]), characters[0])
+                target_class = main_hero["class_type"]
+
+        passive = get_class_passive(target_class)
+        moveset = get_scaled_moveset(target_class, rarity="D")
+
+        b_name, b_desc, b_pwr, b_cost, b_emoji, _ = moveset["basic"]
+        s_name, s_desc, s_pwr, s_cost, s_emoji, s_lvl = moveset["skill"]
+        u_name, u_desc, u_pwr, u_cost, u_emoji, u_lvl = moveset["ultimate"]
+
+        if target_class in ("Knight", "Guardian", "Paladin"):
+            armor_type = "🛡️ Heavy Plate Armor (-25% Physical damage taken)"
+        elif target_class in ("Mage", "Necromancer", "Elementalist"):
+            armor_type = "🔮 Arcane Mana Robes (-25% Elemental damage taken)"
+        else:
+            armor_type = "💨 Agile Leather Armor (-25% Ranged/Projectile damage taken)"
+
+        embed = discord.Embed(
+            title=f"✨ Class Ability Info — {target_class}",
+            description="─────────────────────────────────────",
+            color=0x6C5CE7
+        )
+        embed.add_field(
+            name=f"✨ Passive Ability: {passive['name']}",
+            value=f"*{passive['desc']}*\n───────────",
+            inline=False
+        )
+        embed.add_field(
+            name="🛡️ Armor & Defense Resistance",
+            value=f"{armor_type}\n───────────",
+            inline=False
+        )
+        embed.add_field(
+            name="⚔️ Class Moveset & Level Unlocks",
+            value=(
+                f"{b_emoji} **{b_name}** (Basic) — Pwr `{b_pwr}` | Cost `{b_cost}` | Lvl 1\n*{b_desc}*\n\n"
+                f"{s_emoji} **{s_name}** (Skill) — Pwr `{s_pwr}` | Cost `{s_cost}` | Unlocks Lvl {s_lvl}\n*{s_desc}*\n\n"
+                f"{u_emoji} **{u_name}** (Ultimate) — Pwr `{u_pwr}` | Cost `{u_cost}` | Unlocks Lvl {u_lvl}\n*{u_desc}*"
+            ),
+            inline=False
+        )
+        embed.set_footer(text=f"Use 'vinfo {target_class}' for character attributes.")
+        await ctx.send(embed=embed)
+
+
     @commands.command(name="team", aliases=["vteam", "squad"])
     async def view_team(self, ctx: commands.Context, action: str = None, hero_ref: str = None, slot: int = 1):
         """View or configure your 3v3 battle team slots (vteam / vteam set <hero> <slot>)."""
