@@ -736,15 +736,36 @@ class DatabaseManager:
             (user_id, item_id, quantity)
         )
 
-    async def use_consumable(self, user_id: int, item_id: str, quantity: int = 1) -> None:
-        """Deduct consumable item from player inventory."""
-        curr = await self.get_consumable_quantity(user_id, item_id)
-        if curr < quantity:
-            raise ValueError(f"You do not own enough of that item!")
+    async def use_consumable(self, user_id: int, item_id: str, quantity: int = 1) -> str:
+        """Deduct consumable item from player inventory, checking alias keys if needed."""
+        alias_map = {
+            "novice_pack": ["novice_pack", "pack_novice"],
+            "pack_novice": ["pack_novice", "novice_pack"],
+            "mythic_pack": ["mythic_pack", "pack_mythic"],
+            "pack_mythic": ["pack_mythic", "mythic_pack"],
+            "celestial_pack": ["celestial_pack", "pack_celestial"],
+            "pack_celestial": ["pack_celestial", "celestial_pack"],
+            "common_chest": ["common_chest", "normal_chest"],
+            "normal_chest": ["normal_chest", "common_chest"],
+        }
+        keys_to_check = alias_map.get(item_id, [item_id])
+        
+        target_key = None
+        for key in keys_to_check:
+            curr = await self.get_consumable_quantity(user_id, key)
+            if curr >= quantity:
+                target_key = key
+                break
+
+        if not target_key:
+            raise ValueError("You do not own enough of that item!")
+
         await self.execute(
             "UPDATE player_consumables SET quantity = quantity - ? WHERE user_id = ? AND item_id = ?",
-            (quantity, user_id, item_id)
+            (quantity, user_id, target_key)
         )
+        return target_key
+
 
     # Market Helpers
 

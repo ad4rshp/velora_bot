@@ -36,10 +36,31 @@ class CharacterDetailView(VeloraView):
         needed_xp = get_xp_for_level(level)
         rarity = char["rarity"]
         
-        stats = calculate_stats(
+        eq_list = char.get("equipped_gear", [])
+        
+        base_stats = calculate_stats(
             char["base_hp"], char["base_atk"], char["base_def"], char["base_spd"],
             level=level, rarity=rarity
         )
+        
+        # Calculate gear bonuses ONLY if gear is equipped to this character
+        bonus_hp = sum(e.get("stat_hp", 0) for e in eq_list)
+        bonus_atk = sum(e.get("stat_atk", 0) for e in eq_list)
+        bonus_def = sum(e.get("stat_def", 0) for e in eq_list)
+        bonus_spd = sum(e.get("stat_spd", 0) for e in eq_list)
+
+        eff_hp = base_stats["hp"] + bonus_hp
+        eff_atk = base_stats["atk"] + bonus_atk
+        eff_def = base_stats["def"] + bonus_def
+        eff_spd = base_stats["spd"] + bonus_spd
+
+        if bonus_hp > 0 or bonus_atk > 0 or bonus_def > 0 or bonus_spd > 0:
+            attr_val = (
+                f"HP: `{eff_hp}` (`+{bonus_hp}`)  |  ATK: `{eff_atk}` (`+{bonus_atk}`)  |  "
+                f"DF: `{eff_def}` (`+{bonus_def}`)  |  SP: `{eff_spd}` (`+{bonus_spd}`)\n───────────"
+            )
+        else:
+            attr_val = f"HP: `{eff_hp}`  |  ATK: `{eff_atk}`  |  DF: `{eff_def}`  |  SP: `{eff_spd}`\n───────────"
         
         active_badge = " ⭐" if char.get("is_active") else ""
         
@@ -51,10 +72,9 @@ class CharacterDetailView(VeloraView):
 
         embed.add_field(
             name="Attributes",
-            value=f"HP: `{stats['hp']}`  |  ATK: `{stats['atk']}`  |  DF: `{stats['def']}`  |  SP: `{stats['spd']}`\n───────────",
+            value=attr_val,
             inline=False
         )
-
 
         from utils.movesets import get_scaled_moveset, get_class_passive
         passive = get_class_passive(char["class_type"])
@@ -89,17 +109,29 @@ class CharacterDetailView(VeloraView):
         else:
             xp_str = "`MAX`"
 
+        weapon_str = char.get("equipped_weapon_name", "None")
+        armor_items = [f"{e['name']} [{e['rarity']}]" for e in eq_list if e.get("slot") != "Weapon"]
+        armor_str = " • ".join(armor_items) if armor_items else "None"
+        scroll_str = char.get("equipped_scrolls_str", "None")
+
+        status_lines = [
+            f"• Resource: `{char['resource_type']}` (`{char['resource_max']}` Max)",
+            f"• XP Progress: {xp_str}",
+            f"• Weapon: **{weapon_str}**",
+        ]
+        if armor_str != "None":
+            status_lines.append(f"• Armor/Gear: **{armor_str}**")
+        if scroll_str != "None":
+            status_lines.append(f"• Scrolls: **{scroll_str}**")
+
         embed.add_field(
             name="Status & Loadout",
-            value=(
-                f"• Resource: `{char['resource_type']}` (`{char['resource_max']}` Max)\n"
-                f"• XP Progress: {xp_str}\n"
-                f"• Equipped Weapon: **{char.get('equipped_weapon_name', 'Starter Gear')}**"
-            ),
+            value="\n".join(status_lines),
             inline=False
         )
 
         return embed
+
 
 
 

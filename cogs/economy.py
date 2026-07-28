@@ -53,20 +53,45 @@ class EconomyCog(commands.Cog, name="Economy"):
 
 
     @commands.command(name="open", aliases=["use", "vopen"])
-    async def open_item(self, ctx: commands.Context, item_id: str = "common_chest"):
-        """Open chests or consume items (common_chest, rare_chest, blank_scroll, repair_kit)."""
+    async def open_item(self, ctx: commands.Context, *, item_id: str = "common_chest"):
+        """Open chests, hero packs, or consume items (normal chest, rare chest, hero packs, etc.)."""
         user_id = ctx.author.id
-        item_key = item_id.lower()
+        clean_name = item_id.lower().strip().replace("-", " ").replace("_", " ")
 
-        valid_items = ["common_chest", "rare_chest", "blank_scroll", "repair_kit"]
-        if item_key not in valid_items:
+        if clean_name in ("normal", "normal chest", "normalchest", "common", "common chest", "commonchest", "chest"):
+            item_key = "common_chest"
+            display_name = "Common Chest"
+        elif clean_name in ("rare", "rare chest", "rarechest"):
+            item_key = "rare_chest"
+            display_name = "Rare Chest"
+        elif clean_name in ("blank", "blank scroll", "blankscroll", "scroll"):
+            item_key = "blank_scroll"
+            display_name = "Blank Scroll"
+        elif clean_name in ("repair", "repair kit", "repairkit", "kit"):
+            item_key = "repair_kit"
+            display_name = "Repair Kit"
+        elif clean_name in ("novice", "novice pack", "novicepack", "pack novice"):
+            item_key = "novice_pack"
+            display_name = "Novice Hero Pack"
+        elif clean_name in ("mythic", "mythic pack", "mythicpack", "pack mythic"):
+            item_key = "mythic_pack"
+            display_name = "Mythic Hero Pack"
+        elif clean_name in ("celestial", "celestial pack", "celestialpack", "pack celestial"):
+            item_key = "celestial_pack"
+            display_name = "Celestial Hero Pack"
+        else:
+            item_key = clean_name.replace(" ", "_")
+            display_name = item_key.replace("_", " ").title()
+
+        valid_items = ["normal chest", "rare chest", "blank scroll", "repair kit", "novice pack", "mythic pack", "celestial pack"]
+        if item_key not in ("common_chest", "rare_chest", "blank_scroll", "repair_kit", "novice_pack", "mythic_pack", "celestial_pack", "pack_novice", "pack_mythic", "pack_celestial"):
             await ctx.send(embed=Embeds.error("Invalid Item", f"Valid items to open: `{', '.join(valid_items)}`"))
             return
 
         try:
-            await db.use_consumable(user_id, item_key, 1)
-        except ValueError as e:
-            await ctx.send(embed=Embeds.warning("Item Missing", f"You don't own any `{item_key}`! Buy one at `{ctx.prefix}shop`."))
+            used_key = await db.use_consumable(user_id, item_key, 1)
+        except ValueError:
+            await ctx.send(embed=Embeds.warning("Item Missing", f"You don't own any **{display_name}**! Buy items at `{ctx.prefix}shop`."))
             return
 
         # Handle chest rewards
@@ -104,7 +129,6 @@ class EconomyCog(commands.Cog, name="Economy"):
             await ctx.send(embed=embed)
 
         elif item_key == "blank_scroll":
-            # Generate random scroll from catalog
             random_scroll = random.choice(STARTER_SCROLLS)
             await db.execute("INSERT INTO player_scrolls (user_id, scroll_id) VALUES (?, ?)", (user_id, random_scroll["id"]))
             await db.execute("UPDATE player_stats SET blank_scrolls_used = blank_scrolls_used + 1 WHERE user_id = ?", (user_id,))
@@ -120,6 +144,66 @@ class EconomyCog(commands.Cog, name="Economy"):
             await db.execute("UPDATE player_stats SET repair_kits_used = repair_kits_used + 1 WHERE user_id = ?", (user_id,))
             embed = Embeds.info("Repair Kit Ready", "Use `vrepair <Equipment_ID>` to apply repair kits to your damaged equipment.")
             await ctx.send(embed=embed)
+
+        elif item_key in ("novice_pack", "mythic_pack", "celestial_pack", "pack_novice", "pack_mythic", "pack_celestial"):
+            all_catalog = await db.fetchall("SELECT * FROM characters")
+            cat_char = dict(random.choice(all_catalog))
+            
+            if "novice" in item_key:
+                rarities = ["D", "C", "B", "A"]
+                weights = [60, 28, 10, 2]
+                lvl = random.randint(1, 5)
+                pack_name = "Novice Hero Pack"
+            elif "mythic" in item_key:
+                rarities = ["D", "C", "B", "A", "S", "SS"]
+                weights = [35, 35, 20, 6, 3.5, 0.5]
+                lvl = random.randint(5, 15)
+                pack_name = "Mythic Hero Pack"
+            else:
+                rarities = ["C", "B", "A", "S", "SS"]
+                weights = [20, 40, 27, 10, 3.0]
+                lvl = random.randint(10, 20)
+                pack_name = "Celestial Hero Pack"
+
+            rarity = random.choices(rarities, weights=weights)[0]
+            await db.get_or_create_player(user_id)
+
+            await db.execute(
+                """
+                INSERT INTO player_characters (user_id, character_id, level, xp, rarity, is_active)
+                VALUES (?, ?, ?, 0, ?, 0)
+                """,
+                (user_id, cat_char["character_id"], lvl, rarity)
+            )
+
+            char_inst = await db.fetchone("SELECT last_insert_rowid() as id")
+            char_instance_id = char_inst["id"]
+
+            await db.execute(
+                "UPDATE player_stats SET characters_collected = characters_collected + 1 WHERE user_id = ?",
+                (user_id,)
+            )
+
+            # Grant class starter weapon
+            class_type = cat_char["class_type"]
+            weapon_catalog = await db.get_catalog_equipment(slot="Weapon", class_type=class_type)
+            if weapon_catalog:
+                w_item = dict(weapon_catalog[0])
+                w_data = {
+                    "name": w_item["name"], "slot": "Weapon", "compatible_class": w_item["compatible_class"],
+                    "rarity": w_item["base_rarity"], "quality": 50, "durability": 100, "max_durability": 100,
+                    "stat_hp": w_item["base_hp"], "stat_atk": w_item["base_atk"], "stat_def": w_item["base_def"], "stat_spd": w_item["base_spd"]
+                }
+                eq_inst = await db.add_equipment(user_id, w_data)
+                await db.equip_gear(user_id, eq_inst["equipment_id"], char_instance_id)
+
+            embed = Embeds.success(
+                "🎴 Hero Card Unpacked!",
+                f"You opened **{pack_name}** and summoned **{cat_char['name']}** ({cat_char['class_type']})!\n"
+                f"Rarity: **[{rarity}]** | Level: **{lvl}**\nAdded to your hero inventory (`vinventory`)!"
+            )
+            await ctx.send(embed=embed)
+
 
     @commands.command(name="sell", aliases=["vsell", "disassemble", "salvage"])
     async def sell(self, ctx: commands.Context, target_type: str = None, item_ref: str = None):

@@ -137,17 +137,37 @@ class CharacterCog(commands.Cog, name="Character"):
         if not target_char:
             target_char = dict(characters[0])
 
-        # Fetch equipped weapon for hero
+        # Fetch equipped gear & weapon with rarity for hero
         eq_items = await db.fetchall(
-            "SELECT name FROM player_equipment WHERE equipped_character_id = ?",
+            "SELECT name, slot, rarity, stat_hp, stat_atk, stat_def, stat_spd FROM player_equipment WHERE equipped_character_id = ?",
             (target_char["instance_id"],)
         )
         if eq_items:
-            target_char["equipped_weapon_name"] = " • ".join([e["name"] for e in eq_items])
+            target_char["equipped_gear"] = [dict(e) for e in eq_items]
+            weapons = [f"{e['name']} [{e['rarity']}]" for e in eq_items if e["slot"] == "Weapon"]
+            target_char["equipped_weapon_name"] = " • ".join(weapons) if weapons else "None"
         else:
-            target_char["equipped_weapon_name"] = "Default Starter Gear"
+            target_char["equipped_gear"] = []
+            target_char["equipped_weapon_name"] = "None"
+
+        # Fetch equipped scrolls for hero from character_loadouts
+        sc_items = await db.fetchall(
+            """
+            SELECT s.name, s.scroll_type, s.power
+            FROM character_loadouts cl
+            JOIN player_scrolls ps ON cl.scroll_instance_id = ps.instance_id
+            JOIN scrolls s ON ps.scroll_id = s.scroll_id
+            WHERE cl.character_instance_id = ?
+            """,
+            (target_char["instance_id"],)
+        )
+        if sc_items:
+            target_char["equipped_scrolls_str"] = " • ".join([f"{s['name']} [{s['scroll_type']}]" for s in sc_items])
+        else:
+            target_char["equipped_scrolls_str"] = "None"
 
         embed = CharacterDetailView.build_character_embed(target_char)
+
 
         
         # Check if 2D character artwork image exists in assets
@@ -240,15 +260,25 @@ class CharacterCog(commands.Cog, name="Character"):
         for s in (1, 2, 3):
             hero = team_slots[s]
             if hero:
-                stats = calculate_stats(
+                base_s = calculate_stats(
                     hero["base_hp"], hero["base_atk"], hero["base_def"], hero["base_spd"],
                     level=hero["level"], rarity=hero["rarity"]
                 )
+                eq_items = await db.fetchall(
+                    "SELECT stat_hp, stat_atk, stat_def, stat_spd FROM player_equipment WHERE equipped_character_id = ?",
+                    (hero["instance_id"],)
+                )
+                eff_hp = base_s["hp"] + sum(e["stat_hp"] for e in eq_items)
+                eff_atk = base_s["atk"] + sum(e["stat_atk"] for e in eq_items)
+                eff_def = base_s["def"] + sum(e["stat_def"] for e in eq_items)
+                eff_spd = base_s["spd"] + sum(e["stat_spd"] for e in eq_items)
+
                 embed.add_field(
                     name=f"{s}. {hero['name']} ({hero['class_type']})",
-                    value=f"Lvl **{hero['level']}** • **[{hero['rarity']}]** | HP: `{stats['hp']}`  ATK: `{stats['atk']}`  DF: `{stats['def']}`  SP: `{stats['spd']}`\n───────────",
+                    value=f"Lvl **{hero['level']}** • **[{hero['rarity']}]** | HP: `{eff_hp}`  ATK: `{eff_atk}`  DF: `{eff_def}`  SP: `{eff_spd}`\n───────────",
                     inline=False
                 )
+
             else:
                 embed.add_field(
                     name=f"{s}. Empty",

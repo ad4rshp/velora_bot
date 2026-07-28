@@ -100,16 +100,27 @@ class BattleCog(commands.Cog, name="Battle"):
 
         # Prepare Player Combatants (up to 3 heroes)
         team_a_combatants = []
+
         for char in player_heroes[:3]:
-            stats = calculate_stats(
+            base_s = calculate_stats(
                 char["base_hp"], char["base_atk"], char["base_def"], char["base_spd"],
                 level=char["level"], rarity=char["rarity"]
             )
+            eq_items = await db.fetchall(
+                "SELECT stat_hp, stat_atk, stat_def, stat_spd FROM player_equipment WHERE equipped_character_id = ?",
+                (char["instance_id"],)
+            )
+            eff_stats = {
+                "hp": base_s["hp"] + sum(e["stat_hp"] for e in eq_items),
+                "atk": base_s["atk"] + sum(e["stat_atk"] for e in eq_items),
+                "def": base_s["def"] + sum(e["stat_def"] for e in eq_items),
+                "spd": base_s["spd"] + sum(e["stat_spd"] for e in eq_items),
+            }
             c = Combatant(
                 instance_id=char["instance_id"],
                 name=char["name"],
                 class_type=char["class_type"],
-                stats=stats,
+                stats=eff_stats,
                 resource_type=char["resource_type"],
                 resource_max=char["resource_max"]
             )
@@ -160,8 +171,6 @@ class BattleCog(commands.Cog, name="Battle"):
 
             side_b = BattleSide(user_id=0, display_name="Velora", team=bot_combatants)
 
-
-
         else:
             opp_heroes = await db.get_player_characters(target.id)
             if not opp_heroes:
@@ -170,21 +179,32 @@ class BattleCog(commands.Cog, name="Battle"):
 
             team_b_combatants = []
             for char in opp_heroes[:3]:
-                stats = calculate_stats(
+                base_s = calculate_stats(
                     char["base_hp"], char["base_atk"], char["base_def"], char["base_spd"],
                     level=char["level"], rarity=char["rarity"]
                 )
+                eq_items = await db.fetchall(
+                    "SELECT stat_hp, stat_atk, stat_def, stat_spd FROM player_equipment WHERE equipped_character_id = ?",
+                    (char["instance_id"],)
+                )
+                eff_stats = {
+                    "hp": base_s["hp"] + sum(e["stat_hp"] for e in eq_items),
+                    "atk": base_s["atk"] + sum(e["stat_atk"] for e in eq_items),
+                    "def": base_s["def"] + sum(e["stat_def"] for e in eq_items),
+                    "spd": base_s["spd"] + sum(e["stat_spd"] for e in eq_items),
+                }
                 cb = Combatant(
                     instance_id=char["instance_id"],
                     name=char["name"],
                     class_type=char["class_type"],
-                    stats=stats,
+                    stats=eff_stats,
                     resource_type=char["resource_type"],
                     resource_max=char["resource_max"]
                 )
                 cb.level = char["level"]
                 team_b_combatants.append(cb)
             side_b = BattleSide(user_id=target.id, display_name=target.display_name, team=team_b_combatants)
+
 
 
         # 3. Instantiate Engine & Battle UI
@@ -223,9 +243,6 @@ class BattleCog(commands.Cog, name="Battle"):
         else:
             embed = view.build_battle_embed()
             view.message = await ctx.send(embed=embed, view=view)
-
-
-
 
 
 async def setup(bot: commands.Bot):
