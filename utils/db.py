@@ -140,6 +140,11 @@ class DatabaseManager:
             await self.conn.execute("ALTER TABLE players ADD COLUMN xp_boost_until TIMESTAMP DEFAULT NULL")
         except Exception:
             pass
+        try:
+            await self.conn.execute("ALTER TABLE players ADD COLUMN notify_levelup INTEGER NOT NULL DEFAULT 0")
+        except Exception:
+            pass
+
 
 
         if sql_dir.exists():

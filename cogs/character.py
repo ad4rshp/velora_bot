@@ -73,18 +73,33 @@ class CharacterCog(commands.Cog, name="Character"):
                 "UPDATE player_characters SET level = ?, xp = ? WHERE instance_id = ?",
                 (new_lvl, current_xp, hero_dict["instance_id"])
             )
-            boost_text = " (⚡ 2x XP Boosted!)" if is_boosted else ""
-            hero_display_name = hero_dict.get("name") or hero_dict.get("catalog_name", "Hero")
-            embed = Embeds.success(
-                "Hero Level Up!",
-                f"🎉 **{hero_display_name}** ({hero_dict['class_type']}) earned `{final_xp}` Chat XP{boost_text} and reached **Level {new_lvl}**!"
-            )
-            await message.channel.send(embed=embed)
+            
+            # Check optional level-up notification setting (default OFF/0 to keep chat clean)
+            player_row = await db.fetchone("SELECT notify_levelup FROM players WHERE user_id = ?", (user_id,))
+            if player_row and player_row["notify_levelup"] == 1:
+                boost_text = " (⚡ 2x XP Boosted!)" if is_boosted else ""
+                hero_display_name = hero_dict.get("name") or hero_dict.get("catalog_name", "Hero")
+                embed = Embeds.success(
+                    "Hero Level Up!",
+                    f"🎉 **{hero_display_name}** ({hero_dict['class_type']}) earned `{final_xp}` Chat XP{boost_text} and reached **Level {new_lvl}**!"
+                )
+                await message.channel.send(embed=embed)
         else:
             await db.execute(
                 "UPDATE player_characters SET xp = ? WHERE instance_id = ?",
                 (current_xp, hero_dict["instance_id"])
             )
+
+    @commands.command(name="toggle", aliases=["vtoggle"])
+    async def toggle_setting(self, ctx: commands.Context, setting_name: str = "notify"):
+        """Toggle personal settings like level-up notifications (e.g. `vtoggle notify`)."""
+        player = await db.get_or_create_player(ctx.author.id)
+        current = player.get("notify_levelup", 0)
+        new_val = 0 if current == 1 else 1
+
+        await db.execute("UPDATE players SET notify_levelup = ? WHERE user_id = ?", (new_val, ctx.author.id))
+        status_str = "ENABLED (Level up messages will be sent in chat)" if new_val == 1 else "DISABLED (Level ups will happen quietly)"
+        await ctx.send(embed=Embeds.info("Notification Setting Updated", f"🔔 Level Up Chat Notifications are now **{status_str}**."))
 
     @commands.command(name="start", aliases=["vstart", "begin"])
     async def start(self, ctx: commands.Context):
@@ -126,13 +141,14 @@ class CharacterCog(commands.Cog, name="Character"):
         is_boosted = await db.is_xp_booster_active(user.id)
 
         pvp_title = player.get("title_id") or "Unranked Challenger"
-        boost_badge = "\n⚡ **2x XP Boost Active**" if is_boosted else ""
+        boost_badge = " • ⚡ 2x XP" if is_boosted else ""
 
         embed = discord.Embed(
             title=f"🛡️ Player Profile — {user.display_name}",
             description=f"Title: **{pvp_title}** | Rating: `🏆 {player['pvp_rating']} RP`{boost_badge}\n─────────────────────────────────────",
             color=0x6C5CE7
         )
+
         embed.set_thumbnail(url=user.display_avatar.url)
 
         embed.add_field(

@@ -8,9 +8,10 @@ SHOP_ITEMS = {
     "novice_pack": {"name": "Novice Hero Pack", "cost_type": "coins", "cost": 500, "desc": "Summons a starter hero card to your roster."},
     "mythic_pack": {"name": "Mythic Hero Pack", "cost_type": "coins", "cost": 2500, "desc": "Summons an upgraded hero card with high level potential."},
     "celestial_pack": {"name": "Celestial Hero Pack", "cost_type": "sigils", "cost": 20, "desc": "Summons an ultra rare hero card to your roster."},
-    "xp_booster": {"name": "24h 2x XP Booster", "cost_type": "coins", "cost": 500, "desc": "Doubles all Chat and Battle XP earned for 24 hours."},
+    "xp_booster": {"name": "XP Booster", "cost_type": "coins", "cost": 500, "desc": "Doubles all Chat and Battle XP earned for 24h."},
     "repair_kit": {"name": "Repair Kit", "cost_type": "coins", "cost": 300, "desc": "Restores full durability to an equipment piece."}
 }
+
 
 
 
