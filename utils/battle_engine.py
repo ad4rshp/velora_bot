@@ -156,7 +156,44 @@ class BattleEngine:
             self._end_turn()
         return True
 
+    def execute_heal(self, healer_side: BattleSide, skill_name: str = "Healing Light", power: int = 40, resource_cost: int = 25) -> Dict[str, Any]:
+        """Execute healing turn restoring health to active combatant or lowest HP ally."""
+        healer = healer_side.active_hero
+
+        status_logs = healer.tick_status_effects()
+        for log_msg in status_logs:
+            self.log(log_msg)
+
+        if "Stun" in healer.status_effects:
+            self.log(f"⚡ **{healer.name}** is Stunned and cannot move!")
+            healer.regenerate_resource(5)
+            self._end_turn()
+            return {"finished": self.is_finished, "winner": self.winner_side, "stunned": True}
+
+        resource_success = healer.consume_resource(resource_cost)
+        if not resource_success:
+            self.log(f"⚠️ **{healer.name}** does not have enough resource to cast **{skill_name}**!")
+            healer.regenerate_resource(10)
+            self._end_turn()
+            return {"finished": self.is_finished, "winner": self.winner_side, "no_resource": True}
+
+        # Calculate healing amount: power + healer.atk * 0.5
+        heal_amt = max(15, int(power + healer.atk * 0.5))
+        
+        # Target lowest HP living hero on the side
+        target_hero = min([c for c in healer_side.team if not c.is_ko], key=lambda c: c.current_hp / max(1, c.max_hp))
+        old_hp = target_hero.current_hp
+        target_hero.current_hp = min(target_hero.max_hp, target_hero.current_hp + heal_amt)
+        healed_diff = target_hero.current_hp - old_hp
+
+        self.log(f"💚 **{healer.name}**: **{skill_name}** → **{target_hero.name}** (+{healed_diff} HP restored)")
+
+        healer.regenerate_resource(5)
+        self._end_turn()
+        return {"finished": self.is_finished, "winner": self.winner_side, "healed": True}
+
     def execute_attack(self, attacker_side: BattleSide, defender_side: BattleSide, attack_name: str = "Basic Attack", power: int = 30, resource_cost: int = 15) -> Dict[str, Any]:
+
         """Execute attack turn with resource consumption, miss checks, and defense mitigation."""
         attacker = attacker_side.active_hero
         defender = defender_side.active_hero

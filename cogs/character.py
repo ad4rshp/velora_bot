@@ -226,8 +226,8 @@ class CharacterCog(commands.Cog, name="Character"):
     @commands.command(name="team", aliases=["vteam", "squad"])
     async def view_team(self, ctx: commands.Context, action: str = None, hero_ref: str = None, slot: int = 1):
         """View or configure your 3v3 battle team slots (vteam / vteam set <hero> <slot>)."""
-        characters = await db.get_player_characters(ctx.author.id)
-        if not characters:
+        team_list = await db.get_player_team(ctx.author.id)
+        if not team_list:
             await ctx.send(embed=Embeds.warning("No Heroes", "You don't own any heroes yet! Use `vstart` to claim starter heroes."))
             return
 
@@ -236,21 +236,6 @@ class CharacterCog(commands.Cog, name="Character"):
             await ctx.invoke(self.select_hero, index_or_name=hero_ref, slot=slot)
             return
 
-        # Display 3v3 Team Squad
-        team_slots = {1: None, 2: None, 3: None}
-        for row in characters:
-            c = dict(row)
-            tslot = c.get("team_slot")
-            if tslot in (1, 2, 3) and not team_slots[tslot]:
-                team_slots[tslot] = c
-
-        # Fill empty slots automatically with available heroes if unset
-        available = [dict(c) for c in characters if dict(c)["instance_id"] not in [t["instance_id"] for t in team_slots.values() if t]]
-
-        for s in (1, 2, 3):
-            if not team_slots[s] and available:
-                team_slots[s] = available.pop(0)
-
         embed = discord.Embed(
             title=f"Battle Lineup — {ctx.author.display_name}",
             description="─────────────────────────────────────",
@@ -258,12 +243,13 @@ class CharacterCog(commands.Cog, name="Character"):
         )
 
         for s in (1, 2, 3):
-            hero = team_slots[s]
+            hero = next((c for c in team_list if c.get("team_slot") == s), None)
             if hero:
                 base_s = calculate_stats(
                     hero["base_hp"], hero["base_atk"], hero["base_def"], hero["base_spd"],
                     level=hero["level"], rarity=hero["rarity"]
                 )
+
                 eq_items = await db.fetchall(
                     "SELECT stat_hp, stat_atk, stat_def, stat_spd FROM player_equipment WHERE equipped_character_id = ?",
                     (hero["instance_id"],)

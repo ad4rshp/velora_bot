@@ -64,6 +64,20 @@ class AttackSelect(discord.ui.Select):
                 emoji="🔒"
             ))
 
+        # Add equipped skill scrolls if present on combatant
+        eq_scrolls = getattr(active_hero, "equipped_scrolls", [])
+        self.scroll_map = {}
+        for s_idx, sc in enumerate(eq_scrolls):
+            val_key = f"scroll_{s_idx}"
+            s_emoji = "💚" if sc.get("scroll_type") == "Heal" else "📜"
+            options.append(discord.SelectOption(
+                label=f"📜 {sc['name']}",
+                value=val_key,
+                description=f"{sc['scroll_type']} ({sc.get('power', 0)} Pwr | {sc.get('resource_cost', 20)} {active_hero.resource_type})",
+                emoji=s_emoji
+            ))
+            self.scroll_map[val_key] = sc
+
         super().__init__(placeholder=f"⚔️ Select move for {active_hero.name}...", options=options, row=0)
         self.engine = engine
         self.moveset = moveset
@@ -79,17 +93,35 @@ class AttackSelect(discord.ui.Select):
             await interaction.response.send_message("🔒 That skill is locked! Gain XP in battles to level up your hero.", ephemeral=True)
             return
 
-        if move_key == "basic":
-            move_name, _, power, cost, _, _ = self.moveset["basic"]
-        elif move_key == "skill":
-            move_name, _, power, cost, _, _ = self.moveset["skill"]
+        if move_key in getattr(self, "scroll_map", {}):
+            sc = self.scroll_map[move_key]
+            move_name = sc["name"]
+            power = sc.get("power", 30)
+            cost = sc.get("resource_cost", 20)
+            stype = sc.get("scroll_type", "Attack")
+            
+            if stype == "Heal":
+                result = self.engine.execute_heal(
+                    self.engine.current_side, skill_name=move_name, power=power, resource_cost=cost
+                )
+            else:
+                result = self.engine.execute_attack(
+                    self.engine.current_side, self.engine.opponent_side,
+                    move_name, power, resource_cost=cost
+                )
         else:
-            move_name, _, power, cost, _, _ = self.moveset["ultimate"]
+            if move_key == "basic":
+                move_name, _, power, cost, _, _ = self.moveset["basic"]
+            elif move_key == "skill":
+                move_name, _, power, cost, _, _ = self.moveset["skill"]
+            else:
+                move_name, _, power, cost, _, _ = self.moveset["ultimate"]
 
-        result = self.engine.execute_attack(
-            self.engine.current_side, self.engine.opponent_side,
-            move_name, power, resource_cost=cost
-        )
+            result = self.engine.execute_attack(
+                self.engine.current_side, self.engine.opponent_side,
+                move_name, power, resource_cost=cost
+            )
+
 
         # If opponent is bot (user_id == 0), automatically execute smart bot turn ONLY IF it is the bot's turn to attack
         if not result.get("finished") and self.engine.current_side.user_id == 0:

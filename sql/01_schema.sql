@@ -100,8 +100,11 @@ CREATE TABLE IF NOT EXISTS scrolls (
     cooldown INTEGER NOT NULL DEFAULT 0,
     status_chance INTEGER NOT NULL DEFAULT 0,
     required_class_tags TEXT NOT NULL,
+    min_level INTEGER NOT NULL DEFAULT 1,
+    resource_cost INTEGER NOT NULL DEFAULT 20,
     description TEXT NOT NULL
 );
+
 
 CREATE TABLE IF NOT EXISTS player_scrolls (
     instance_id INTEGER PRIMARY KEY AUTOINCREMENT,

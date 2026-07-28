@@ -89,8 +89,8 @@ class BattleCog(commands.Cog, name="Battle"):
             ))
             return
 
-        # 1. Fetch user's hero roster
-        player_heroes = await db.get_player_characters(player_id)
+        # 1. Fetch user's active battle team
+        player_heroes = await db.get_player_team(player_id)
         if not player_heroes:
             await ctx.send(embed=Embeds.warning(
                 "No Heroes Found",
@@ -116,6 +116,19 @@ class BattleCog(commands.Cog, name="Battle"):
                 "def": base_s["def"] + sum(e["stat_def"] for e in eq_items),
                 "spd": base_s["spd"] + sum(e["stat_spd"] for e in eq_items),
             }
+
+            # Fetch equipped skill scrolls for combatant
+            sc_items = await db.fetchall(
+                """
+                SELECT s.name, s.scroll_type, s.power, s.cooldown, s.resource_cost, s.description
+                FROM character_loadouts cl
+                JOIN player_scrolls ps ON cl.scroll_instance_id = ps.instance_id
+                JOIN scrolls s ON ps.scroll_id = s.scroll_id
+                WHERE cl.character_instance_id = ?
+                """,
+                (char["instance_id"],)
+            )
+
             c = Combatant(
                 instance_id=char["instance_id"],
                 name=char["name"],
@@ -125,7 +138,10 @@ class BattleCog(commands.Cog, name="Battle"):
                 resource_max=char["resource_max"]
             )
             c.level = char["level"]
+            c.rarity = char["rarity"]
+            c.equipped_scrolls = [dict(s) for s in sc_items]
             team_a_combatants.append(c)
+
 
         side_a = BattleSide(user_id=player_id, display_name=ctx.author.display_name, team=team_a_combatants)
 

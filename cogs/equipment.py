@@ -416,5 +416,106 @@ class EquipmentCog(commands.Cog, name="Equipment"):
             view.message = await ctx.send(embed=pages[0], view=view)
 
 
+    @commands.command(name="equipscroll", aliases=["vlearn", "vequipscroll", "learnscroll"])
+    async def equip_scroll(self, ctx: commands.Context, scroll_index_or_id: str, hero_index_or_name: str = None):
+        """Learn and equip a skill scroll to a compatible hero at required level (e.g. `vlearn #1 #1`)."""
+        user_id = ctx.author.id
+
+        scroll_rows = await db.fetchall(
+            """
+            SELECT ps.instance_id, ps.scroll_id, s.name, s.scroll_type, s.power, s.cooldown,
+                   s.required_class_tags, s.min_level, s.resource_cost, s.description
+            FROM player_scrolls ps
+            JOIN scrolls s ON ps.scroll_id = s.scroll_id
+            WHERE ps.user_id = ?
+            """,
+            (user_id,)
+        )
+        if not scroll_rows:
+            await ctx.send(embed=Embeds.warning("No Scrolls", "You don't own any skill scrolls! Open blank scrolls (`vopen blank`) or buy items at `vshop`."))
+            return
+
+        target_scroll = None
+        clean_s = scroll_index_or_id.strip().lstrip('#')
+        if clean_s.isdigit():
+            val = int(clean_s)
+            if 1 <= val <= len(scroll_rows):
+                target_scroll = dict(scroll_rows[val - 1])
+            else:
+                target_scroll = next((dict(s) for s in scroll_rows if s["instance_id"] == val), None)
+
+        if not target_scroll:
+            await ctx.send(embed=Embeds.error("Scroll Not Found", f"Could not find skill scroll matching `{scroll_index_or_id}` in your inventory."))
+            return
+
+        heroes = await db.get_player_characters(user_id)
+        if not heroes:
+            await ctx.send(embed=Embeds.warning("No Heroes", "You don't own any heroes yet! Use `vstart`."))
+            return
+
+        target_hero = None
+        if hero_index_or_name:
+            clean_h = hero_index_or_name.strip().lstrip('#')
+            if clean_h.isdigit():
+                val = int(clean_h)
+                if 1 <= val <= len(heroes):
+                    target_hero = dict(heroes[val - 1])
+                else:
+                    target_hero = next((dict(c) for c in heroes if c["instance_id"] == val), None)
+            else:
+                st = hero_index_or_name.lower()
+                target_hero = next((dict(c) for c in heroes if st in c["name"].lower() or st in c["class_type"].lower()), None)
+        else:
+            target_hero = next((dict(c) for c in heroes if c["is_active"]), dict(heroes[0]))
+
+        if not target_hero:
+            await ctx.send(embed=Embeds.error("Hero Not Found", f"Could not find hero matching `{hero_index_or_name}`."))
+            return
+
+        # Check level requirement
+        min_lvl = target_scroll.get("min_level", 1)
+        if target_hero["level"] < min_lvl:
+            await ctx.send(embed=Embeds.warning(
+                "Level Requirement Unmet",
+                f"**{target_hero['name']}** is Level **{target_hero['level']}**, but **{target_scroll['name']}** requires Level **{min_lvl}**!"
+            ))
+            return
+
+        # Check class tag compatibility
+        req_tags = target_scroll.get("required_class_tags", "All")
+        if req_tags and req_tags != "All":
+            allowed_classes = [c.strip().lower() for c in req_tags.split(",")]
+            if target_hero["class_type"].lower() not in allowed_classes:
+                await ctx.send(embed=Embeds.warning(
+                    "Incompatible Class",
+                    f"**{target_scroll['name']}** requires class **{req_tags}**, but **{target_hero['name']}** is a **{target_hero['class_type']}**!"
+                ))
+                return
+
+        # Assign into character_loadouts
+        current_loadout = await db.fetchall("SELECT * FROM character_loadouts WHERE character_instance_id = ?", (target_hero["instance_id"],))
+        slot_idx = len(current_loadout) + 1
+        if slot_idx > 2:
+            slot_idx = 1  # Swap slot 1 if full
+
+        await db.execute(
+            """
+            INSERT INTO character_loadouts (character_instance_id, slot_index, scroll_instance_id)
+            VALUES (?, ?, ?)
+            ON CONFLICT(character_instance_id, slot_index) DO UPDATE SET
+                scroll_instance_id = excluded.scroll_instance_id
+            """,
+            (target_hero["instance_id"], slot_idx, target_scroll["instance_id"])
+        )
+
+        embed = Embeds.success(
+            "Skill Scroll Learned & Equipped!",
+            f"📜 **{target_hero['name']}** ({target_hero['class_type']}) learned **{target_scroll['name']}** [{target_scroll['scroll_type']}] (Slot #{slot_idx})!\n"
+            f"Cost: `{target_scroll.get('resource_cost', 20)}` {target_hero['resource_type']} | Required Lvl: `{min_lvl}`"
+        )
+        await ctx.send(embed=embed)
+
+
 async def setup(bot: commands.Bot):
     await bot.add_cog(EquipmentCog(bot))
+

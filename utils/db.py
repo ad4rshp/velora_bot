@@ -125,8 +125,18 @@ class DatabaseManager:
         """Executes schema and catalog SQL scripts from sql/ directory automatically on startup."""
         import os
         from pathlib import Path
-
         sql_dir = Path("sql")
+
+        # Ensure scrolls table has min_level and resource_cost columns on existing databases
+        try:
+            await self.conn.execute("ALTER TABLE scrolls ADD COLUMN min_level INTEGER NOT NULL DEFAULT 1")
+        except Exception:
+            pass
+        try:
+            await self.conn.execute("ALTER TABLE scrolls ADD COLUMN resource_cost INTEGER NOT NULL DEFAULT 20")
+        except Exception:
+            pass
+
         if sql_dir.exists():
             sql_files = sorted(sql_dir.glob("*.sql"))
             for file_path in sql_files:
@@ -136,6 +146,7 @@ class DatabaseManager:
                     await self.conn.executescript(content)
         await self.conn.commit()
         db_logger.info("Database schema and catalog migrations synced successfully.")
+
 
 
         async with self.conn.execute("SELECT version FROM schema_migrations WHERE version = 1") as cursor:
@@ -583,14 +594,53 @@ class DatabaseManager:
 
     async def set_active_character(self, user_id: int, instance_id: int, slot: int = 1) -> None:
         """Set a character as active team member in slot (1, 2, or 3)."""
+        if slot == 1:
+            await self.execute("UPDATE player_characters SET is_active = 0 WHERE user_id = ?", (user_id,))
         await self.execute(
-            "UPDATE player_characters SET is_active = 0, team_slot = NULL WHERE user_id = ? AND team_slot = ?",
+            "UPDATE player_characters SET team_slot = NULL WHERE user_id = ? AND team_slot = ?",
             (user_id, slot)
         )
+        is_act = 1 if slot == 1 else 0
         await self.execute(
-            "UPDATE player_characters SET is_active = 1, team_slot = ? WHERE instance_id = ? AND user_id = ?",
-            (slot, instance_id, user_id)
+            "UPDATE player_characters SET is_active = CASE WHEN ? = 1 THEN 1 ELSE is_active END, team_slot = ? WHERE instance_id = ? AND user_id = ?",
+            (is_act, slot, instance_id, user_id)
         )
+
+    async def get_player_team(self, user_id: int) -> List[aiosqlite.Row]:
+        """Fetch a player's active 3-hero battle lineup, ensuring slots 1-3 are initialized in database."""
+        characters = await self.get_player_characters(user_id)
+        if not characters:
+            return []
+
+        team_map = {1: None, 2: None, 3: None}
+        for row in characters:
+            c = dict(row)
+            tslot = c.get("team_slot")
+            if tslot in (1, 2, 3) and not team_map[tslot]:
+                team_map[tslot] = c
+
+        unassigned = [dict(c) for c in characters if dict(c)["instance_id"] not in [r["instance_id"] for r in team_map.values() if r]]
+        
+        for s in (1, 2, 3):
+            if not team_map[s] and unassigned:
+                chosen = unassigned.pop(0)
+                is_act = 1 if s == 1 else 0
+                await self.execute(
+                    "UPDATE player_characters SET team_slot = ?, is_active = CASE WHEN ? = 1 THEN 1 ELSE is_active END WHERE instance_id = ?",
+                    (s, is_act, chosen["instance_id"])
+                )
+                team_map[s] = chosen
+
+        # Return updated characters list for user
+        refreshed = await self.get_player_characters(user_id)
+        team_list = []
+        for s in (1, 2, 3):
+            match = next((dict(c) for c in refreshed if c["team_slot"] == s), None)
+            if match:
+                team_list.append(match)
+        return team_list
+
+
 
     # Equipment Helpers
 
