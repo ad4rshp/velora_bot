@@ -2,7 +2,9 @@
 Game Constants, Character Class Identities, and Formula Calculations for Velora RPG.
 """
 
+import random
 from typing import Dict, Any, List
+
 
 # Rarity Multiplier Scaling
 RARITY_MULTIPLIERS: Dict[str, float] = {
@@ -212,9 +214,8 @@ STARTER_SCROLLS: List[Dict[str, Any]] = [
     }
 ]
 
-import random
-
 EQUIPMENT_NAMES_CATALOG: Dict[str, Dict[str, List[str]]] = {
+
     "Weapon": {
         "D": ["Iron Longsword", "Apprentice Wand", "Hunting Bow", "Shadow Daggers", "Iron Warhammer", "Bone Reaper Scythe", "Radiant Spear", "Blessed Warhammer", "Primal Elemental Staff"],
         "C": ["Steel Broadsword", "Rune Wand", "Recurve Bow", "Assassin Blade", "Battle Axe", "Soul Scythe", "Guarded Spear", "Paladin Mace", "Arcane Staff"],
