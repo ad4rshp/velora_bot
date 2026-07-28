@@ -269,7 +269,8 @@ class BattleEngine:
         final_damage = max(1, int(raw_damage * variance))
 
         dealt = defender.take_damage(final_damage)
-        self.log(f"⚔️ **{attacker.name}**: **{attack_name}** [{category}] → **{defender.name}** ({dealt} dmg)")
+        self.log(f"⚔️ **{attacker.name}**: **{attack_name}** → **{defender.name}** ({dealt} dmg)")
+
 
 
         # Status Application Triggers based on move/class type
