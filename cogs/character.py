@@ -4,12 +4,13 @@ Implements vstart, vprofile, vinventory, and character inspection commands.
 """
 
 import os
+import random
 import discord
 from discord.ext import commands
 
 from utils.embeds import Embeds
 from utils.db import db
-from utils.constants import calculate_stats
+from utils.constants import calculate_stats, get_xp_for_level
 from views.starter_view import StarterView
 from views.character_view import CharacterDetailView
 from views.paginator import PaginatorView
@@ -19,6 +20,71 @@ class CharacterCog(commands.Cog, name="Character"):
 
     def __init__(self, bot: commands.Bot):
         self.bot = bot
+        self.xp_cooldowns = {}  # {user_id: timestamp}
+
+    @commands.Cog.listener()
+    async def on_message(self, message: discord.Message):
+        """Award XP to user's selected main active hero when chatting (with 60s anti-spam cooldown)."""
+        if message.author.bot or not message.guild or not message.content:
+            return
+
+        user_id = message.author.id
+        now = message.created_at.timestamp()
+
+        # 60-Second Anti-Spam Cooldown per user
+        last_time = self.xp_cooldowns.get(user_id, 0)
+        if now - last_time < 60.0:
+            return
+
+        # Fetch user's selected main active hero (team_slot = 1 or is_active = 1)
+        active_hero = await db.fetchone(
+            """
+            SELECT pc.*, c.name as catalog_name, c.class_type
+            FROM player_characters pc
+            JOIN characters c ON pc.character_id = c.character_id
+            WHERE pc.user_id = ? AND (pc.team_slot = 1 OR pc.is_active = 1)
+            ORDER BY pc.team_slot ASC, pc.is_active DESC LIMIT 1
+            """,
+            (user_id,)
+        )
+        if not active_hero:
+            return
+
+        self.xp_cooldowns[user_id] = now
+
+        # Calculate base XP (15-25 XP)
+        base_xp = random.randint(15, 25)
+        
+        # Check if 2x XP booster is active for user
+        is_boosted = await db.is_xp_booster_active(user_id)
+        final_xp = base_xp * 2 if is_boosted else base_xp
+
+        hero_dict = dict(active_hero)
+        current_lvl = hero_dict["level"]
+        current_xp = hero_dict["xp"] + final_xp
+
+        req_xp = get_xp_for_level(current_lvl)
+
+        new_lvl = current_lvl
+        if req_xp > 0 and current_xp >= req_xp:
+            current_xp -= req_xp
+            new_lvl += 1
+            await db.execute(
+                "UPDATE player_characters SET level = ?, xp = ? WHERE instance_id = ?",
+                (new_lvl, current_xp, hero_dict["instance_id"])
+            )
+            boost_text = " (⚡ 2x XP Boosted!)" if is_boosted else ""
+            hero_display_name = hero_dict.get("name") or hero_dict.get("catalog_name", "Hero")
+            embed = Embeds.success(
+                "Hero Level Up!",
+                f"🎉 **{hero_display_name}** ({hero_dict['class_type']}) earned `{final_xp}` Chat XP{boost_text} and reached **Level {new_lvl}**!"
+            )
+            await message.channel.send(embed=embed)
+        else:
+            await db.execute(
+                "UPDATE player_characters SET xp = ? WHERE instance_id = ?",
+                (current_xp, hero_dict["instance_id"])
+            )
 
     @commands.command(name="start", aliases=["vstart", "begin"])
     async def start(self, ctx: commands.Context):
@@ -50,41 +116,35 @@ class CharacterCog(commands.Cog, name="Character"):
         view = StarterView(author_id=user_id, startermeta=startermeta)
         view.message = await ctx.send(embed=embed, view=view)
 
-    @commands.command(name="profile", aliases=["p", "prof"])
+    @commands.command(name="profile", aliases=["p", "prof", "vprofile"])
     async def profile(self, ctx: commands.Context, target: discord.User = None):
-        """View compact player profile card."""
-        from cogs.battle import get_rank_title
+        """View player wallet, ranked title, and active hero."""
         user = target or ctx.author
         player = await db.get_or_create_player(user.id)
-        stats = await db.fetchone("SELECT * FROM player_stats WHERE user_id = ?", (user.id,))
-        
-        # Fetch active hero
-        characters = await db.get_player_characters(user.id)
-        active_char = next((c for c in characters if c["is_active"]), characters[0] if characters else None)
-        title_str = player["title_id"] if player["title_id"] else "Novice Adventurer"
-        rank_name, _ = get_rank_title(player["pvp_rating"])
+        active_char = await db.get_active_character(user.id)
+        stats = await db.get_player_stats(user.id)
+        is_boosted = await db.is_xp_booster_active(user.id)
+
+        pvp_title = player.get("title_id") or "Unranked Challenger"
+        boost_badge = "\n⚡ **2x XP Boost Active**" if is_boosted else ""
 
         embed = discord.Embed(
-            title=f"{user.display_name} — Player Profile",
-            description=(
-                f"Title: **[{title_str}]**\n"
-                f"Rank: **{rank_name}** (`{player['pvp_rating']:,} RP`)\n"
-                f"─────────────────────────────────────"
-            ),
+            title=f"🛡️ Player Profile — {user.display_name}",
+            description=f"Title: **{pvp_title}** | Rating: `🏆 {player['pvp_rating']} RP`{boost_badge}\n─────────────────────────────────────",
             color=0x6C5CE7
         )
         embed.set_thumbnail(url=user.display_avatar.url)
 
         embed.add_field(
-            name="Balance",
+            name="Wallet & Balances",
             value=f"🪙 `{player['coins']:,}` Coins  |  🔮 `{player['sigils']:,}` Sigils\n───────────",
             inline=False
         )
 
         if active_char:
             embed.add_field(
-                name="Active Hero",
-                value=f"**{active_char['name']}** ({active_char['class_type']}) • Lvl `{active_char['level']}` `[{active_char['rarity']}]`\n───────────",
+                name="Active Main Hero (Earning Chat XP)",
+                value=f"**{active_char['name']}** ({active_char['class_type']}) • Lvl `{active_char['level']}` `[{active_char['rarity']}]` (XP: `{active_char['xp']}`)\n───────────",
                 inline=False
             )
         else:

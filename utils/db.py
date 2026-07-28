@@ -127,7 +127,7 @@ class DatabaseManager:
         from pathlib import Path
         sql_dir = Path("sql")
 
-        # Ensure scrolls table has min_level and resource_cost columns on existing databases
+        # Ensure scrolls and players tables have necessary columns on existing databases
         try:
             await self.conn.execute("ALTER TABLE scrolls ADD COLUMN min_level INTEGER NOT NULL DEFAULT 1")
         except Exception:
@@ -136,6 +136,11 @@ class DatabaseManager:
             await self.conn.execute("ALTER TABLE scrolls ADD COLUMN resource_cost INTEGER NOT NULL DEFAULT 20")
         except Exception:
             pass
+        try:
+            await self.conn.execute("ALTER TABLE players ADD COLUMN xp_boost_until TIMESTAMP DEFAULT NULL")
+        except Exception:
+            pass
+
 
         if sql_dir.exists():
             sql_files = sorted(sql_dir.glob("*.sql"))
@@ -881,6 +886,22 @@ class DatabaseManager:
     async def set_active_title(self, user_id: int, title_id: str) -> None:
         """Set equipped title."""
         await self.execute("UPDATE players SET title_id = ? WHERE user_id = ?", (title_id, user_id))
+
+    async def activate_xp_booster(self, user_id: int, duration_hours: int = 24) -> None:
+        """Activate a 2x XP booster for specified duration."""
+        await self.execute(
+            "UPDATE players SET xp_boost_until = datetime('now', '+' || ? || ' hours') WHERE user_id = ?",
+            (duration_hours, user_id)
+        )
+
+    async def is_xp_booster_active(self, user_id: int) -> bool:
+        """Check if a player currently has an active XP booster."""
+        row = await self.fetchone(
+            "SELECT 1 FROM players WHERE user_id = ? AND xp_boost_until IS NOT NULL AND datetime(xp_boost_until) > datetime('now')",
+            (user_id,)
+        )
+        return bool(row)
+
 
 db = DatabaseManager()
 
