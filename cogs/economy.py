@@ -151,19 +151,20 @@ class EconomyCog(commands.Cog, name="Economy"):
             
             if "novice" in item_key:
                 rarities = ["D", "C", "B", "A"]
-                weights = [60, 28, 10, 2]
+                weights = [68, 24, 7, 1]
                 lvl = random.randint(1, 5)
                 pack_name = "Novice Hero Pack"
             elif "mythic" in item_key:
                 rarities = ["D", "C", "B", "A", "S", "SS"]
-                weights = [35, 35, 20, 6, 3.5, 0.5]
+                weights = [45, 32, 16, 5, 1.9, 0.1]
                 lvl = random.randint(5, 15)
                 pack_name = "Mythic Hero Pack"
             else:
                 rarities = ["C", "B", "A", "S", "SS"]
-                weights = [20, 40, 27, 10, 3.0]
+                weights = [35, 42, 18, 4.6, 0.4]
                 lvl = random.randint(10, 20)
                 pack_name = "Celestial Hero Pack"
+
 
             rarity = random.choices(rarities, weights=weights)[0]
             await db.get_or_create_player(user_id)

@@ -214,6 +214,41 @@ STARTER_SCROLLS: List[Dict[str, Any]] = [
 
 import random
 
+EQUIPMENT_NAMES_CATALOG: Dict[str, Dict[str, List[str]]] = {
+    "Weapon": {
+        "D": ["Iron Longsword", "Apprentice Wand", "Hunting Bow", "Shadow Daggers", "Iron Warhammer", "Bone Reaper Scythe", "Radiant Spear", "Blessed Warhammer", "Primal Elemental Staff"],
+        "C": ["Steel Broadsword", "Rune Wand", "Recurve Bow", "Assassin Blade", "Battle Axe", "Soul Scythe", "Guarded Spear", "Paladin Mace", "Arcane Staff"],
+        "B": ["Paladin Greatsword", "Starlight Crystal Staff", "Windrunner Composite Bow", "Nightstalker Katana", "Bulwark Tower Shield", "Grimoire of Souls", "Lance of the Valkyrie", "Sacred Bastion Shield", "Tempest Crystal Orb"],
+        "A": ["Mythic Claymore", "Archon Spellstaff", "Falcon Featherbow", "Venom Shadowblade", "Titan Shield", "Reaper Harvester", "Celestial Spear", "Holy Crusader Mace", "Storm Orb"],
+        "S": ["Excalibur Holy Sword", "Archmage Staff of Eternity", "Artemis Celestial Longbow", "Eclipse Death Blades", "Aegis of the Immortal", "Death God Reaper Scythe", "Gungnir Divine Spear", "Mjolnir Holy Bulwark", "Aetherial Primordial Staff"],
+        "SS": ["Divine Executioner Excalibur", "Omnipotent Archmage Staff", "Godseye Artemis Longbow", "Infinite Eclipse Daggers", "Aegis of Supreme Gods", "Eternal Soul Reaper Scythe", "Absolute Gungnir Spear", "Sacred Mjolnir of Archangels", "Genesis Aetherial Staff"]
+    },
+    "Armor": {
+        "D": ["Iron Armor", "Leather Vest", "Cloth Robe", "Steel Plate Armor"],
+        "C": ["Reinforced Steel Armor", "Chainmail Vest", "Silk Arcane Robe"],
+        "B": ["Knight Paladin Armor", "Shadow Leather Armor", "Archmage Robe"],
+        "A": ["Mythic Mithril Armor", "Nightstalker Armor", "Empress Celestial Robe"],
+        "S": ["Dragon Scale Mail", "Aegis Guardian Armor", "Divine Archangel Robe"],
+        "SS": ["Godly Dragon Lord Plate", "Infinite Void Armor", "Genesis Supreme Robes"]
+    },
+    "Helmet": {
+        "D": ["Iron Helm", "Leather Cap", "Cloth Hood"],
+        "C": ["Reinforced Steel Helm", "Hunter Mask", "Arcane Hood"],
+        "B": ["Knight Crusader Crown", "Shadow Mask", "Wizard Crown"],
+        "A": ["Mythic Mithril Crown", "Nightstalker Hood", "Empress Arcane Crown"],
+        "S": ["Crown of Kings", "Dragon Scale Helm", "Divine Halo Crown"],
+        "SS": ["Godly Crown of All Kings", "Infinite Void Helmet", "Genesis Celestial Crown"]
+    },
+    "Boots": {
+        "D": ["Windrider Boots", "Leather Greaves", "Cloth Shoes"],
+        "C": ["Reinforced Steel Boots", "Shadow Boots", "Arcane Shoes"],
+        "B": ["Knight Paladin Sabatons", "Nightstalker Treads", "Wizard Striders"],
+        "A": ["Mythic Mithril Boots", "Swift Treads", "Empress Striders"],
+        "S": ["Hermes Winged Sandals", "Dragon Scale Sabatons", "Divine Swift Shoes"],
+        "SS": ["Godly Hermes Winged Boots", "Infinite Void Sabatons", "Genesis Celestial Striders"]
+    }
+}
+
 def generate_random_equipment(slot: str, name: str = None) -> Dict[str, Any]:
     """Generate randomized equipment with rarity, quality, stats, and durability."""
     rarities = ["D", "C", "B", "A", "S", "SS"]
@@ -233,7 +268,9 @@ def generate_random_equipment(slot: str, name: str = None) -> Dict[str, Any]:
     spd = base_val * 2 if slot in ("Boots", "Necklace") else base_val // 2
     
     if not name:
-        name = f"Common {slot}" if rarity == "D" else f"Rare {rarity}-Rank {slot}"
+        slot_cat = EQUIPMENT_NAMES_CATALOG.get(slot, EQUIPMENT_NAMES_CATALOG["Armor"])
+        names_list = slot_cat.get(rarity, slot_cat["D"])
+        name = random.choice(names_list)
 
     return {
         "name": name,
@@ -247,6 +284,7 @@ def generate_random_equipment(slot: str, name: str = None) -> Dict[str, Any]:
         "stat_def": defense,
         "stat_spd": spd
     }
+
 
 def roll_new_equipment_stats(current_slot: str) -> Dict[str, Any]:
     """Reroll equipment stats simultaneously (OwO style)."""
