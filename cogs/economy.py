@@ -148,11 +148,12 @@ class EconomyCog(commands.Cog, name="Economy"):
         elif item_key == "xp_booster":
             await db.activate_xp_booster(user_id, duration_hours=24)
             embed = Embeds.success(
-                "2x XP Booster Activated!",
-                "⚡ **2x XP Booster Activated!**\n"
-                "Your active main hero will now earn **Double XP** (2x) from chatting and battles for the next **24 hours**!"
+                "XP Booster Activated!",
+                "⚡ **XP Booster Activated!**\n"
+                "Your active main hero will now earn **Double XP** from chatting and battles for the next **24 hours**!"
             )
             await ctx.send(embed=embed)
+
 
 
         elif item_key in ("novice_pack", "mythic_pack", "celestial_pack", "pack_novice", "pack_mythic", "pack_celestial"):
