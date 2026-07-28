@@ -71,30 +71,49 @@ class MarketCog(commands.Cog, name="Market"):
 
 
     @market.command(name="add", aliases=["list"])
-    async def market_add(self, ctx: commands.Context, equipment_id: str, price: int):
-        """List an equipment piece for sale on the marketplace (e.g. `vmarket add #1 2500`)."""
-        clean_id = equipment_id.lstrip('#')
-        if not clean_id.isdigit():
-            await ctx.send(embed=Embeds.error("Invalid ID", "Please specify a valid equipment ID (e.g. `vmarket add #1 2500`)."))
-            return
-
-        eq_id = int(clean_id)
+    async def market_add(self, ctx: commands.Context, equipment_ref: str, price: int):
+        """List an equipment piece for sale on the marketplace (e.g. `vmarket add 1 2500` or `vmarket add #1 2500`)."""
         if price <= 0:
             await ctx.send(embed=Embeds.error("Invalid Price", "Listing price must be greater than 0 coins."))
             return
 
-        gear = await db.get_equipment_by_id(eq_id)
-        if not gear or gear["user_id"] != ctx.author.id:
-            await ctx.send(embed=Embeds.error("Item Not Found", f"Could not find equipment #{eq_id} in your inventory."))
+        user_id = ctx.author.id
+        gear_list = await db.get_player_equipment(user_id)
+        if not gear_list:
+            await ctx.send(embed=Embeds.warning("No Equipment", "You don't own any equipment items to list in the marketplace!"))
             return
 
-        if gear["equipped_character_id"]:
-            await ctx.send(embed=Embeds.warning("Item Equipped", f"**{gear['name']}** is currently equipped! Unequip it before listing."))
+        gear = None
+        clean_arg = equipment_ref.strip().lstrip('#')
+        
+        if clean_arg.isdigit():
+            val = int(clean_arg)
+            if 1 <= val <= len(gear_list):
+                gear = dict(gear_list[val - 1])
+            else:
+                gear = next((dict(g) for g in gear_list if g["equipment_id"] == val), None)
+        else:
+            st = equipment_ref.lower()
+            gear = next((dict(g) for g in gear_list if st in g["name"].lower()), None)
+
+        if not gear:
+            await ctx.send(embed=Embeds.error("Item Not Found", f"Could not find equipment matching `{equipment_ref}` in your inventory."))
             return
+
+        if gear.get("equipped_character_id") == -1:
+            await ctx.send(embed=Embeds.warning("Already Listed", f"**{gear['name']}** is already listed on the marketplace!"))
+            return
+
+        if gear.get("equipped_character_id") and gear["equipped_character_id"] > 0:
+            await ctx.send(embed=Embeds.warning("Item Equipped", f"**{gear['name']}** is currently equipped! Unequip it (`vunequip #{gear['equipment_id']}`) before listing."))
+            return
+
+        # Mark item as listed on marketplace (equipped_character_id = -1)
+        await db.execute("UPDATE player_equipment SET equipped_character_id = -1 WHERE equipment_id = ?", (gear["equipment_id"],))
 
         data_json = json.dumps(dict(gear))
-        listing = await db.create_market_listing(ctx.author.id, gear["name"], "equipment", data_json, price)
-        await db.update_quest_progress(ctx.author.id, "Merchant", 1)
+        listing = await db.create_market_listing(user_id, gear["name"], "equipment", data_json, price)
+        await db.update_quest_progress(user_id, "Merchant", 1)
 
         embed = Embeds.success(
             "Item Listed for Sale!",
@@ -115,8 +134,11 @@ class MarketCog(commands.Cog, name="Market"):
             bought = await db.buy_market_listing(ctx.author.id, l_id)
             item_data = json.loads(bought["item_data_json"])
             
-            # Transfer equipment ownership to buyer
-            await db.execute("UPDATE player_equipment SET user_id = ? WHERE equipment_id = ?", (ctx.author.id, item_data["equipment_id"]))
+            # Transfer equipment ownership to buyer and reset equipped status
+            await db.execute(
+                "UPDATE player_equipment SET user_id = ?, equipped_character_id = NULL WHERE equipment_id = ?",
+                (ctx.author.id, item_data["equipment_id"])
+            )
 
             embed = Embeds.success(
                 "Market Purchase Successful!",
@@ -185,12 +207,17 @@ class MarketCog(commands.Cog, name="Market"):
             await ctx.send(embed=Embeds.error("Permission Denied", "You can only remove your own market listings!"))
             return
 
+        item_data = json.loads(listing["item_data_json"]) if isinstance(listing["item_data_json"], str) else listing["item_data_json"]
+        if "equipment_id" in item_data:
+            await db.execute("UPDATE player_equipment SET equipped_character_id = NULL WHERE equipment_id = ?", (item_data["equipment_id"],))
+
         await db.execute("DELETE FROM market_listings WHERE listing_id = ?", (l_id,))
         embed = Embeds.success(
             "Listing Removed!",
             f"Removed your listing for **{listing['item_name']}** (Listing #{l_id}) from the market."
         )
         await ctx.send(embed=embed)
+
 
 
     @commands.command(name="trade", aliases=["t"])

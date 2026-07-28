@@ -325,6 +325,14 @@ class BattleView(discord.ui.View):
             for side in (side_a, side_b):
                 if side.user_id > 0:
                     asyncio.create_task(db.update_quest_progress(side.user_id, "Battles", 1))
+                    inst_ids = [c.instance_id for c in side.team if getattr(c, 'instance_id', 0) > 0]
+                    if inst_ids:
+                        ph = ",".join("?" for _ in inst_ids)
+                        asyncio.create_task(db.execute(
+                            f"UPDATE player_equipment SET durability = MAX(0, durability - 2) WHERE equipped_character_id IN ({ph})",
+                            tuple(inst_ids)
+                        ))
+
 
             if winner_side.user_id > 0:
                 asyncio.create_task(db.update_quest_progress(winner_side.user_id, "Victorious", 1))

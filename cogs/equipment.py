@@ -266,7 +266,7 @@ class EquipmentCog(commands.Cog, name="Equipment"):
     @commands.command(name="reroll", aliases=["rr"])
     async def reroll(self, ctx: commands.Context, index_or_id: str):
         """Perform a single equipment reroll (Costs 10 Sigils)."""
-        gear_list = await db.get_user_equipment(ctx.author.id)
+        gear_list = await db.get_player_equipment(ctx.author.id)
         if not gear_list:
             await ctx.send(embed=Embeds.warning("No Equipment", "You don't own any equipment items yet!"))
             return
@@ -304,30 +304,69 @@ class EquipmentCog(commands.Cog, name="Equipment"):
         )
         view.message = await ctx.send(embed=embed, view=view)
 
-    @commands.command(name="repair", aliases=["r", "rp"])
-    async def repair(self, ctx: commands.Context, index_or_id: str):
-        """Inspect and repair equipment durability."""
-        gear_list = await db.get_user_equipment(ctx.author.id)
+    @commands.command(name="repair", aliases=["vrepair", "r", "rp"])
+    async def repair(self, ctx: commands.Context, *, index_or_id: str = None):
+        """Inspect & repair targeted equipment durability (e.g. `vrepair #1` or `vrepair Iron Longsword`)."""
+        user_id = ctx.author.id
+        gear_list = await db.get_player_equipment(user_id)
         if not gear_list:
             await ctx.send(embed=Embeds.warning("No Equipment", "You don't own any equipment items yet!"))
             return
 
-        gear = None
-        clean_arg = index_or_id.lstrip('#')
-        if clean_arg.isdigit():
-            val = int(clean_arg)
-            if 1 <= val <= len(gear_list):
-                gear = dict(gear_list[val - 1])
-            else:
-                gear = next((dict(g) for g in gear_list if g["equipment_id"] == val), None)
+        if not index_or_id:
+            gear = min([dict(g) for g in gear_list], key=lambda g: g["durability"] / max(1, g["max_durability"]))
+        else:
+            gear = None
+            clean_arg = index_or_id.strip().lstrip('#')
+            if clean_arg.isdigit():
+                val = int(clean_arg)
+                if 1 <= val <= len(gear_list):
+                    gear = dict(gear_list[val - 1])
+                else:
+                    gear = next((dict(g) for g in gear_list if g["equipment_id"] == val), None)
+
+            if not gear:
+                st = index_or_id.lower()
+                gear = next((dict(g) for g in gear_list if st in g["name"].lower() or st in g["slot"].lower()), None)
 
         if not gear:
             await ctx.send(embed=Embeds.error("Item Not Found", f"No equipment item matching `{index_or_id}` found in your inventory."))
             return
 
-        embed = EquipmentDetailView.build_equipment_embed(dict(gear))
-        view = EquipmentDetailView(author_id=ctx.author.id, eq_row=gear)
-        view.message = await ctx.send(embed=embed, view=view)
+        missing_dur = gear["max_durability"] - gear["durability"]
+        if missing_dur == 0:
+            await ctx.send(embed=Embeds.info("Fully Repaired", f"**{gear['name']}** [{gear['rarity']}] is already at full durability (`100%`)!"))
+            return
+
+        # Check if player owns a Repair Kit consumable
+        repair_kits_owned = await db.get_consumable_quantity(user_id, "repair_kit")
+        if repair_kits_owned > 0:
+            await db.use_consumable(user_id, "repair_kit", 1)
+            await db.execute("UPDATE player_equipment SET durability = max_durability WHERE equipment_id = ?", (gear["equipment_id"],))
+            await db.execute("UPDATE player_stats SET repair_kits_used = repair_kits_used + 1 WHERE user_id = ?", (user_id,))
+            embed = Embeds.success(
+                "Equipment Repaired!",
+                f"🛠️ Used **1x Repair Kit** to restore **{gear['name']}** [{gear['rarity']}] ({gear['slot']}) to **100% Durability** (`{gear['max_durability']}/{gear['max_durability']}`)!"
+            )
+            await ctx.send(embed=embed)
+        else:
+            cost_coins = missing_dur * 10
+            player = await db.get_or_create_player(user_id)
+            if player["coins"] < cost_coins:
+                await ctx.send(embed=Embeds.error(
+                    "Insufficient Coins",
+                    f"Repairing **{gear['name']}** costs 🪙 **{cost_coins:,} Coins** (or 1x Repair Kit)!\n"
+                    f"Your balance: 🪙 `{player['coins']:,}`"
+                ))
+                return
+
+            await db.repair_equipment(user_id, gear["equipment_id"], cost_coins)
+            embed = Embeds.success(
+                "Equipment Repaired!",
+                f"🛠️ Repaired **{gear['name']}** [{gear['rarity']}] ({gear['slot']}) to **100% Durability** (`{gear['max_durability']}/{gear['max_durability']}`) for 🪙 **{cost_coins:,} Coins**!"
+            )
+            await ctx.send(embed=embed)
+
 
 
     @commands.command(name="scrolls", aliases=["sc"])
