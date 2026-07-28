@@ -443,21 +443,40 @@ class DatabaseManager:
 
     # Player Profile Helpers
 
-    async def get_or_create_player(self, user_id: int) -> aiosqlite.Row:
+    async def get_or_create_player(self, user_id: int) -> Dict[str, Any]:
         """Fetch player or create new profile record with initial stats."""
         player = await self.fetchone("SELECT * FROM players WHERE user_id = ?", (user_id,))
         if not player:
             await self.execute("INSERT INTO players (user_id) VALUES (?)", (user_id,))
             await self.execute("INSERT INTO player_stats (user_id) VALUES (?)", (user_id,))
             player = await self.fetchone("SELECT * FROM players WHERE user_id = ?", (user_id,))
-        return player
+        return dict(player) if player else {}
+
+    async def get_player_stats(self, user_id: int) -> Optional[Dict[str, Any]]:
+        """Fetch player stats record."""
+        row = await self.fetchone("SELECT * FROM player_stats WHERE user_id = ?", (user_id,))
+        return dict(row) if row else None
+
+    async def get_active_character(self, user_id: int) -> Optional[Dict[str, Any]]:
+        """Fetch a player's active character."""
+        row = await self.fetchone(
+            """
+            SELECT pc.*, c.name, c.class_type, c.resource_type, c.resource_max,
+                   c.base_hp, c.base_atk, c.base_def, c.base_spd, c.description
+            FROM player_characters pc
+            JOIN characters c ON pc.character_id = c.character_id
+            WHERE pc.user_id = ? AND (pc.is_active = 1 OR pc.team_slot = 1)
+            ORDER BY pc.team_slot ASC, pc.is_active DESC LIMIT 1
+            """,
+            (user_id,)
+        )
+        return dict(row) if row else None
 
     # Character System Helpers
 
     async def get_catalog_characters(self) -> List[aiosqlite.Row]:
         """Fetch all character catalog definitions."""
         return await self.fetchall("SELECT * FROM characters")
-
 
     async def get_catalog_character_by_id(self, character_id: str) -> Optional[aiosqlite.Row]:
         """Fetch character catalog details by ID."""
@@ -531,48 +550,6 @@ class DatabaseManager:
         claimed = await self.claim_starter_characters(user_id, [character_id])
         return claimed[0] if claimed else None
 
-
-        # Get inserted character instance_id
-        char_inst = await self.fetchone("SELECT last_insert_rowid() as id")
-        char_instance_id = char_inst["id"]
-        
-        # Increment characters collected stat
-        await self.execute(
-            "UPDATE player_stats SET characters_collected = characters_collected + 1 WHERE user_id = ?",
-            (user_id,)
-        )
-
-        # Automatically grant class-compatible starter weapon
-        class_type = cat_char["class_type"]
-        weapon_catalog = await self.get_catalog_equipment(slot="Weapon", class_type=class_type)
-        if weapon_catalog:
-            weapon_item = dict(weapon_catalog[0])
-            starter_weapon_data = {
-                "name": weapon_item["name"],
-                "slot": "Weapon",
-                "compatible_class": weapon_item["compatible_class"],
-                "rarity": weapon_item["base_rarity"],
-                "quality": 50,
-                "durability": 100,
-                "max_durability": 100,
-                "stat_hp": weapon_item["base_hp"],
-                "stat_atk": weapon_item["base_atk"],
-                "stat_def": weapon_item["base_def"],
-                "stat_spd": weapon_item["base_spd"]
-            }
-            eq_inst = await self.add_equipment(user_id, starter_weapon_data)
-            await self.equip_gear(user_id, eq_inst["equipment_id"], char_instance_id)
-
-        return await self.fetchone(
-            """
-            SELECT pc.*, c.name, c.class_type, c.resource_type, c.resource_max,
-                   c.base_hp, c.base_atk, c.base_def, c.base_spd, c.description
-            FROM player_characters pc
-            JOIN characters c ON pc.character_id = c.character_id
-            WHERE pc.user_id = ? AND pc.character_id = ?
-            """,
-            (user_id, character_id)
-        )
 
 
     async def get_player_characters(self, user_id: int) -> List[aiosqlite.Row]:
